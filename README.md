@@ -8,6 +8,8 @@
     <img src="https://pbs.twimg.com/profile_images/1398876828295643146/I9HgKjhJ_400x400.jpg" alt="Logo" width="80" height="80">
   </a>
 
+  <img src="https://gitlab.com/zenotta/zenotta-js/badges/main/pipeline.svg" alt="Pipeline Status" />
+
   <h3 align="center">Zenotta-JS</h3>
 
   <p align="center">
