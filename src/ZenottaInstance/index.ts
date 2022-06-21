@@ -12,10 +12,7 @@ import { constructTxInsAddress } from '../mgmt/scriptMgmt';
 import { generateIntercomDelBody, validateRbData } from '../utils/intercomUtils';
 import {
     ICreateTransactionEncrypted,
-    IMakeRbPaymentResponse,
     IMasterKeyEncrypted,
-} from '../interfaces/index';
-import {
     IFetchPendingRbResponse,
     IPendingRbTxData,
     IRequestGetBody,
@@ -23,12 +20,9 @@ import {
     IRequestDelBody,
     IErrorInternal,
     IKeypairEncrypted,
-} from '../interfaces';
-import {
-    IFetchUtxoAddressesResponse,
-    IFetchBalanceResponse,
-    IFetchPendingDDEResponse,
-    ICreateReceiptResponse,
+    IClientConfig,
+    IClientResponse,
+    INetworkResponse,
     IAPIRoute,
 } from '../interfaces';
 import {
@@ -37,64 +31,13 @@ import {
     getRbDataForDruid,
 } from '../utils/intercomUtils';
 
-/* -------------------------------------------------------------------------- */
-/*                                 Interfaces                                 */
-/* -------------------------------------------------------------------------- */
-
-// Config needed for initialization
-export type IClientConfig = {
-    computeHost: string;
-    intercomHost: string;
-    passPhrase: string;
-    timeout?: number;
-};
-
-// Response structure received from compute API endpoints
-type INetworkResponse = {
-    id?: string;
-    status: 'Success' | 'Error' | 'InProgress' | 'Unknown';
-    reason?: string;
-    route?: string;
-    content?: IApiContentType;
-};
-
-// Response structure returned from `ZenottaInstance` methods
-export type IClientResponse = {
-    id?: string;
-    status: 'success' | 'error' | 'pending' | 'unknown';
-    reason?: string;
-    content?: IContentType;
-};
-
-// `content` field of `IClientResponse`
-export type IContentType = {
-    newDRUIDResponse?: string;
-    newSeedPhraseResponse?: string;
-    getSeedPhraseResponse?: string;
-    makeRbPaymentResponse?: IMakeRbPaymentResponse;
-    newKeypairResponse?: IKeypairEncrypted;
-    getMasterKeyResponse?: IMasterKeyEncrypted;
-    initNewResponse?: [string, IMasterKeyEncrypted];
-    initFromSeedResponse?: IMasterKeyEncrypted;
-    regenWalletResponse?: IKeypairEncrypted[];
-} & IApiContentType;
-
-// Content received from compute node API endpoints
-export type IApiContentType = {
-    fetchUtxoAddressesResponse?: IFetchUtxoAddressesResponse;
-    fetchBalanceResponse?: IFetchBalanceResponse;
-    fetchPendingDDEResponse?: IFetchPendingDDEResponse;
-    createReceiptResponse?: ICreateReceiptResponse;
-    fetchPendingRbResponse?: IFetchPendingRbResponse;
-};
-
 export class ZenottaInstance {
     /* -------------------------------------------------------------------------- */
     /*                              Member Variables                              */
     /* -------------------------------------------------------------------------- */
-    private intercomHost: string;
-    private axiosClient: AxiosInstance | undefined;
-    private keyMgmt: mgmtClient | undefined;
+    intercomHost: string;
+    axiosClient: AxiosInstance | undefined;
+    keyMgmt: mgmtClient | undefined;
 
     /* -------------------------------------------------------------------------- */
     /*                                 Constructor                                */

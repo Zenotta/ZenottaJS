@@ -15,6 +15,7 @@ export enum IAPIRoute {
     IntercomSet = '/set_data',
     IntercomGet = '/get_data',
     IntercomDel = '/del_data',
+    GetMempoolKey = '/get_helix_key'
 }
 
 /* -------------------------------------------------------------------------- */
@@ -86,6 +87,10 @@ export type IFetchPendingDDEResponse = {
     pending_transactions: { [key: string]: IDruidDroplet[] };
 };
 
+export type IGetMempoolKeyResponse = {
+    public_key: string
+};
+
 /* -------------------------------------------------------------------------- */
 /*                            Client Response Types                           */
 /* -------------------------------------------------------------------------- */
@@ -110,6 +115,58 @@ export type ICreateTxPayload = {
     createTx: ICreateTransaction;
     excessAddressUsed: boolean;
     usedAddresses: string[];
+};
+
+/* -------------------------------------------------------------------------- */
+/*                                 ZenottaInstance Interfaces                                 */
+/* -------------------------------------------------------------------------- */
+
+// Config needed for initialization
+export type IClientConfig = {
+    computeHost: string;
+    intercomHost: string;
+    passPhrase: string;
+    timeout?: number;
+};
+
+// Response structure received from compute API endpoints
+export type INetworkResponse = {
+    id?: string;
+    status: 'Success' | 'Error' | 'InProgress' | 'Unknown';
+    reason?: string;
+    route?: string;
+    content?: IApiContentType;
+};
+
+// Response structure returned from `ZenottaInstance` methods
+export type IClientResponse = {
+    id?: string;
+    status: 'success' | 'error' | 'pending' | 'unknown';
+    reason?: string;
+    content?: IContentType;
+};
+
+// `content` field of `IClientResponse`
+export type IContentType = {
+    newDRUIDResponse?: string;
+    newSeedPhraseResponse?: string;
+    getSeedPhraseResponse?: string;
+    makeRbPaymentResponse?: IMakeRbPaymentResponse;
+    newKeypairResponse?: IKeypairEncrypted;
+    getMasterKeyResponse?: IMasterKeyEncrypted;
+    initNewResponse?: [string, IMasterKeyEncrypted];
+    initFromSeedResponse?: IMasterKeyEncrypted;
+    regenWalletResponse?: IKeypairEncrypted[];
+} & IApiContentType;
+
+// Content received from compute node API endpoints
+export type IApiContentType = {
+    fetchUtxoAddressesResponse?: IFetchUtxoAddressesResponse;
+    fetchBalanceResponse?: IFetchBalanceResponse;
+    fetchPendingDDEResponse?: IFetchPendingDDEResponse;
+    createReceiptResponse?: ICreateReceiptResponse;
+    fetchPendingRbResponse?: IFetchPendingRbResponse;
+    getMempoolKeyResponse?: IGetMempoolKeyResponse;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -148,6 +205,7 @@ export enum IErrorInternal {
     ClientNotInitialized = 'Client not initialized',
     NoDRUIDValues = 'DRUID values are null',
     UnknownError = 'Unknown Error',
+    KeyMgmtNotInitialized = 'Key management hasn\'t been initialized',
 }
 
 export type SyncResult<T> = Result<T, IErrorInternal | string>;
