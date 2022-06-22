@@ -15,7 +15,8 @@ export enum IAPIRoute {
     IntercomSet = '/set_data',
     IntercomGet = '/get_data',
     IntercomDel = '/del_data',
-    GetMempoolKey = '/get_helix_key'
+    GetMempoolKey = '/get_helix_public_key',
+    GetMempoolSignature = '/get_helix_signature',
 }
 
 /* -------------------------------------------------------------------------- */
@@ -89,6 +90,11 @@ export type IFetchPendingDDEResponse = {
 
 export type IGetMempoolKeyResponse = {
     public_key: string
+};
+
+export type IGetMempoolSignatureResponse = {
+    public_key: string;
+    signature: string;
 };
 
 /* -------------------------------------------------------------------------- */
