@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "target": "esnext",
-    "module": "esnext",
+    "target": "ES6", /* Modern browsers support all ES6 features */
+    "module": "ES6",
     "moduleResolution": "node",
     "declaration": true,
     "outDir": "./lib",
@@ -25,7 +25,19 @@
     "typeRoots": [
       "./node_modules/@types",
       "./src/declaration.d.ts"
-    ]
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@interfaces/*": [
+        "src/interfaces/*"
+      ],
+      "@utils/*": [
+        "src/utils/*"
+      ],
+      "@mgmt/*": [
+        "src/mgmt/*"
+      ]
+    }
   },
   "include": [
     "src"

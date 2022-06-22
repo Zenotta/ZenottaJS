@@ -1,66 +1,44 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { err, ok } from 'neverthrow';
 import {
     IErrorInternal,
-    IFetchPendingRbResponse,
     IKeypair,
-    IPendingRbTxData,
-    IPendingRbTxDetails,
-    IRequestDelBody,
-    IRequestGetBody,
-    IRequestSetBody,
-    SyncResult,
-} from '../interfaces/index';
+    IRequestIntercomDelBody,
+    IRequestIntercomGetBody,
+    IRequestIntercomSetBody,
+    IResponseIntercom,
+    IResult,
+} from '../interfaces';
 import { createSignature } from '../mgmt';
+import { isOfTypeIPendingRbTxDetails } from './interfaceUtils';
 
-// TODO: This function may change to accomodate more than just receipt-based payments moving forward
 /**
- * Get the receipt-based data for a single DRUID
+ * Filter data received from the intercom server for a list of pre-defined predicates
  *
  * @export
- * @param {string} druid
- * @param {IFetchPendingRbResponse} rbData
- * @return {*}  {SyncResult<{
- *     key: string;
- *     data: IPendingRbTxDetails;
- * }>}
+ * @template T - Template of object structure expected from the intercom server
+ * @param {IResponseIntercom<T>} intercomData - Data as received from the intercom server
+ * @param {Partial<{ [key in keyof T]: T[keyof T] }>} predicates - A list of predicates to filter for
+ * @param {boolean} [canBeEmpty=false] - Indication of whether it should be possible to receive an empty list of filtered results
+ * @return {*}  {IResult<IResponseIntercom<T>>}
  */
-export function getRbDataForDruid(
-    druid: string,
-    status: 'pending' | 'rejected' | 'accepted',
-    rbData: IFetchPendingRbResponse,
-): SyncResult<{
-    key: string;
-    data: IPendingRbTxDetails;
-}> {
-    try {
-        const response = Object.entries(rbData)
-            .filter(([, value]) => Object.keys(value.value).includes(druid))
-            .filter(([, value]) =>
-                Object.values(value.value).every((entry) => entry.status === status),
-            )
-            .map(([key, value]) => ({
-                key: key,
-                data: value.value,
-            }))
-            .reduce(
-                (
-                    accumulator: {
-                        key: string;
-                        data: IPendingRbTxData;
-                    }[],
-                    val,
-                ) => accumulator.concat(val),
-                [],
-            ); /* Flatten array */
-        // TODO: This will cause an error if you make receipt-based payments to yourself!
-        if (response.length !== 1) throw new Error(IErrorInternal.InvalidDRUIDProvided);
-        return ok({
-            key: response[0].key,
-            data: response[0].data[druid],
-        });
-    } catch (error) {
-        return err(`${error}`);
-    }
+export function filterIntercomDataForPredicates<T>(
+    intercomData: IResponseIntercom<T>,
+    predicates: Partial<{ [key in keyof T]: T[keyof T] }>,
+    canBeEmpty = false,
+): IResult<IResponseIntercom<T>> {
+    const filteredData: IResponseIntercom<T> = {};
+    Object.entries(filterValidIntercomData(intercomData))
+        .filter(([, value]) =>
+            Object.entries(predicates).every(
+                ([predicateKey, predicateValue]) =>
+                    (value.value as any)[predicateKey] === predicateValue,
+            ),
+        )
+        .forEach(([key, value]) => (filteredData[key] = value));
+    if (Object.entries(filteredData).length === 0 && !canBeEmpty)
+        return err(IErrorInternal.UnableToFilterIntercomData);
+    return ok(filteredData);
 }
 
 /**
@@ -69,12 +47,12 @@ export function getRbDataForDruid(
  * @export
  * @param {string} addressKey
  * @param {IKeypair} keyPairForKey
- * @return {*}  {IRequestGetBody}
+ * @return {*}  {IRequestIntercomGetBody}
  */
 export function generateIntercomGetBody(
     addressKey: string,
     keyPairForKey: IKeypair,
-): IRequestGetBody {
+): IRequestIntercomGetBody {
     return {
         key: addressKey,
         publicKey: Buffer.from(keyPairForKey.publicKey).toString('hex'),
@@ -84,7 +62,7 @@ export function generateIntercomGetBody(
                 Uint8Array.from(Buffer.from(addressKey, 'hex')),
             ),
         ).toString('hex'),
-    } as IRequestGetBody;
+    } as IRequestIntercomGetBody;
 }
 
 /**
@@ -96,14 +74,14 @@ export function generateIntercomGetBody(
  * @param {string} addressField
  * @param {IKeypair} keyPairForField
  * @param {T} value
- * @return {*}  {IRequestSetBody<T>}
+ * @return {*}  {IRequestIntercomSetBody<T>}
  */
 export function generateIntercomSetBody<T>(
     addressKey: string,
     addressField: string,
     keyPairForField: IKeypair,
     value: T,
-): IRequestSetBody<T> {
+): IRequestIntercomSetBody<T> {
     return {
         key: addressKey,
         field: addressField,
@@ -115,7 +93,7 @@ export function generateIntercomSetBody<T>(
         ).toString('hex'),
         publicKey: Buffer.from(keyPairForField.publicKey).toString('hex'),
         value,
-    } as IRequestSetBody<T>;
+    } as IRequestIntercomSetBody<T>;
 }
 
 /**
@@ -125,13 +103,13 @@ export function generateIntercomSetBody<T>(
  * @param {string} addressKey
  * @param {string} addressField
  * @param {IKeypair} keyPairForKey
- * @return {*}  {IRequestDelBody}
+ * @return {*}  {IRequestIntercomDelBody}
  */
 export function generateIntercomDelBody(
     addressKey: string,
     addressField: string,
     keyPairForKey: IKeypair,
-): IRequestDelBody {
+): IRequestIntercomDelBody {
     return {
         key: addressKey,
         field: addressField,
@@ -142,51 +120,22 @@ export function generateIntercomDelBody(
             ),
         ).toString('hex'),
         publicKey: Buffer.from(keyPairForKey.publicKey).toString('hex'),
-    } as IRequestDelBody;
+    } as IRequestIntercomDelBody;
 }
 
 /**
- * Filter and remove garbage entries placed on the intercom server
+ * Remove garbage entries from data received from the intercom server based on the provided template
  *
  * @export
- * @param {IFetchPendingRbResponse} pending
- * @return {*}  {IFetchPendingRbResponse}
+ * @template T - Template of data structure expected from the intercom server
+ * @param {IResponseIntercom<T>} pending - Data as received from the intercom server
+ * @return {*}  {IResponseIntercom<T>}
  */
-export function validateRbData(pending: IFetchPendingRbResponse): IFetchPendingRbResponse {
+export function filterValidIntercomData<T>(pending: IResponseIntercom<T>): IResponseIntercom<T> {
     // We test against this body structure to ensure that the data is valid
-    const emptyDetails = {
-        senderAsset: '',
-        senderAmount: 0,
-        senderAddress: '',
-        receiverAsset: '',
-        receiverAmount: 0,
-        receiverAddress: '',
-        fromAddr: '',
-        status: '',
-    };
-
-    const returnValue: IFetchPendingRbResponse = {};
-    const filtered = Object.entries(pending).filter(
-        ([, value]) =>
-            Object.keys(value.value).length === 1 /* Single DRUID value */ &&
-            Object.values(value.value).every((entry) =>
-                isOfType<IPendingRbTxDetails>(entry, emptyDetails),
-            ) /* Has valid structure */,
-    );
-    filtered.forEach(([key, value]) => (returnValue[key] = value));
+    const returnValue: IResponseIntercom<T> = {};
+    Object.entries(pending)
+        .filter(([, entry]) => isOfTypeIPendingRbTxDetails(entry.value))
+        .forEach(([key, value]) => (returnValue[key] = value));
     return returnValue;
 }
-
-/**
- * Test to see if an object is of a specified interface type
- *
- * @template T
- * @param {*} arg
- * @param {T} testAgainst
- * @return {*}  {arg is T}
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const isOfType = <T>(arg: any, testAgainst: any): arg is T =>
-    Object.entries(testAgainst).every(
-        ([key]) => key in arg && typeof arg[key] === typeof testAgainst[key],
-    );

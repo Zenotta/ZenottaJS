@@ -4,6 +4,7 @@
 /* eslint-disable jest/no-disabled-tests */
 
 import { IFetchBalanceResponse } from '../interfaces';
+import { DEFAULT_DRS_TX_HASH } from '../mgmt';
 
 export type IAddressListTest = {
     [key: string]: {
@@ -12,6 +13,9 @@ export type IAddressListTest = {
         address_version: null;
     };
 };
+
+// Seeds have to be string only
+export const SEED = 'army van defense carry jealous true garbage claim echo media make crunch';
 
 export const ADDRESS_LIST_TEST: IAddressListTest = {
     cf0067d6c42463b2c1e4236e9669df546c74b16c0e2ef37114549b2944e05b7c: {
@@ -37,7 +41,7 @@ export const ADDRESS_LIST_TEST: IAddressListTest = {
 export const FETCH_BALANCE_RESPONSE_TEST: IFetchBalanceResponse = {
     total: {
         tokens: 1060,
-        receipts: 3,
+        receipts: { default_drs_tx_hash: 3 },
     },
     address_list: {
         cf0067d6c42463b2c1e4236e9669df546c74b16c0e2ef37114549b2944e05b7c: [
@@ -56,7 +60,10 @@ export const FETCH_BALANCE_RESPONSE_TEST: IFetchBalanceResponse = {
                     n: 1,
                 },
                 value: {
-                    Receipt: 3,
+                    Receipt: {
+                        amount: 3,
+                        drs_tx_hash: DEFAULT_DRS_TX_HASH,
+                    },
                 },
             },
         ],

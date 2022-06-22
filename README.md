@@ -41,8 +41,9 @@
         <li><a href="#generating-and-testing-seed-phrases">Generating and Testing Seed Phrases</a></li>
         <li><a href="#generating-key-pairs">Generating Key-pairs</a></li>
         <li><a href="#updating-the-balance">Updating the Balance</a></li>
-        <li><a href="#making-token-payments">Making Token Payments</a></li>
-        <li><a href="#making-receipt-based-payments">Making Receipt-based Payments</a></li>
+        <li><a href="#creating-receipt-assets">Creating Receipt Assets</a></li>
+        <li><a href="#spending-tokens">Spending Tokens</a></li>
+        <li><a href="#spending-receipts">Spending Receipts</a></li>
         <li><a href="#fetching-pending-receipt-based-payments">Fetching Pending Receipt-based Payments</a></li>
         <li><a href="#responding-to-pending-receipt-based-payments">Responding to Pending Receipt-based Payments</a></li>
       </ul>
@@ -83,6 +84,8 @@ Install the module to your project:
   yarn add @zenotta/zenotta-js
   ```
 
+<p align="right">(<a href="#top">back to top</a>)</p>
+
 ## Getting Started
 
 * `initNew`
@@ -116,7 +119,7 @@ Install the module to your project:
   
 When the client is initialized without a pre-generated seed phrase or existing master key, the `initNew` function is used to initialize the client. This type of initialization will in return provide a generated seed phrase as well as its corresponding master key in an encrypted format. It is then up to the developer to store this master key somewhere safe, and to display the seed phrase at least once to the user for safe-keeping. This seed phrase can be used to re-construct lost key-pairs if the need should arise.
 
-Some arguments during the initialization are optional, such as the `timeout`- which is used determine the maximum amount of time the client is allowed to wait for a response from the network.
+Some arguments during the initialization are optional, such as the `initOffline`- which is used to initialize the client in an offline state.
 
 The `computeHost` and `intercomHost` interface elements are used to determine the API endpoints for the Compute node, and Zenotta Intercom server the client is supposed to connect to, respectively.
 
@@ -168,7 +171,7 @@ When an existing master key exists, this type of initialization **should** be us
     seedPhrase: SEED_PHRASE
   );
 
-    const masterKey = initResult.content.initFromSeedResponse;
+  const masterKey = initResult.content.initFromSeedResponse;
 
     // Store the encrypted master key safely
   saveMasterKey(masterKeyEncrypted);
@@ -187,7 +190,54 @@ A valid seed phrase has been pre-generated due to specific UX design constraints
 This type of initialization will return the corresponding master key (in an encrypted format) which was created using the provided seed phrase. This master key needs to be stored safely in the same manner as initialization using `initNew`.
 
 <details>
+<summary>Offline Initialization</summary>
+<br/>
+
+```typescript
+import { ZenottaInstance } from '@zenotta/zenotta-js';
+
+  const COMPUTE_HOST = 'example.compute.host.com'
+  const INTERCOM_HOST = 'example.intercom.host.com'
+  const PASSPHRASE = 'a secure passphrase'
+
+  // Create the client object
+  const client = new ZenottaInstance();
+
+  // Configuration
+  const config = {
+      computeHost: COMPUTE_HOST,
+      intercomHost: INTERCOM_HOST,
+      passPhrase: PASSPHRASE,
+    };
+
+  // Initialize the client with the needed configuration
+  const initResult = client.initNew(config, true);
+
+  const [seedPhrase, masterKeyEncrypted] = initResult.content.initNewResponse;
+
+  // Display the seed phrase to the user for safe keeping
+  displaySeedPhrase(seedPhrase);
+
+  // Store the encrypted master key safely
+  saveMasterKey(masterKeyEncrypted);
+
+  // Initialize network configuration when required
+  const initNetworkResult = client.initNetwork(config);
+
+```
+
+In some cases, it might be desirable to initialize the client without a network connection. This will allow the client to be used offline, but will inadvertently prevent the client from being able to perform any operations that require interaction with the Zenotta network. The following functions are available with an offline configuration:
+
+* `regenAddresses` - Re-generate lost key-pairs from a list of given addresses.
+* `getNewKeypair` - Generate a new key-pair.
+* `getSeedPhrase` - Get the existing seed phrase from memory (requires initialization from seed phrase).
+* `getMasterKey` - Get the existing master key from memory.
+
+</details>
+
+<details>
 <summary>User-defined Methods</summary>
+<br/>
 
 ```typescript
   function saveMasterKey(masterKeyEncrypter: IMasterKeyEncrypted): void {
@@ -299,47 +349,119 @@ Since a seed phrase can be used to reconstruct lost/missing key-pairs, it is cus
 
   const balanceResult = await client.fetchBalance(addressList);
 
-  const balance: IFetchBalanceResponse = balanceResult.content.balanceResponse;
+  const balance: IFetchBalanceResponse = balanceResult.content.fetchBalanceResponse;
   ```
   
-<details>
-<summary>Response Content</summary>
-<br/>
+  <details>
+  <summary>Response Content</summary>
+  <br/>
 
-```json
-"total": {
-    "tokens": 85000,
-    "receipts": 0
-}
-"address_list": {
-    "d0e72...85b46": [
-        {
-            "out_point": {
-                "t_hash": "ga070...4df62",
-                "n": 0
-            },
-            "value": {
-                "Token": 60000
-            }
-        },
-        {
-            "out_point": {
-                "t_hash": "g11e3...c916c",
-                "n": 0
-            },
-            "value": {
-                "Token": 25000
-            }
-        },
-    ],
-}
-```
+  ```json
+  {
+      "total": {
+          "tokens": 0,
+          "receipts": {
+              "default_drs_tx_hash": 1000,
+              "g7d07...6704b": 1000
+          }
+      },
+      "address_list": {
+          "a0b08...c02e5": [
+              {
+                  "out_point": {
+                      "t_hash": "g3b13...3353f",
+                      "n": 0
+                  },
+                  "value": {
+                      "Receipt": {
+                          "amount": 1000,
+                          "drs_tx_hash": "default_drs_tx_hash"
+                      }
+                  }
+              },
+              {
+                  "out_point": {
+                      "t_hash": "g7d07...6704b",
+                      "n": 0
+                  },
+                  "value": {
+                      "Receipt": {
+                          "amount": 1000,
+                          "drs_tx_hash": "g7d07...6704b"
+                      }
+                  }
+              },
+              {
+                  "out_point": {
+                      "t_hash": "ga070...4df62",
+                      "n": 0
+                  },
+                  "value": {
+                      "Token": 60000
+                  }
+              }
+          ]
+      }
+  }
+  ```
 
-* `total`: The total balance of all addresses provided
-* `address_list`: A list of addresses and their previous out-points
+  * `total`: The total balance of all addresses provided
+  * `address_list`: A list of addresses and their previous out-points along with their associated assets
+  
+  </details>
+
+### Creating Receipt Assets
+
+* `createReceipts`
+
+  ``` typescript
+  import { ZenottaInstance } from '@zenotta/zenotta-js';
+  
+  const client = new ZenottaInstance();
+  
+  // Initialize the client correctly
+  ...
+  
+  // Address / key-pair to assign the `Receipt` assets to
+  const keyPair = getAllKeypairs()[0];
+  
+  // Create `Receipt` assets that have the default DRS identifier
+  const createReceiptResponse = await client.createReceipts(keyPair).content.createReceiptResponse;
+  
+  <!-- --------------------------------- OR ---------------------------------- -->
+  
+  // Create `Receipt` assets that have a unique DRS identifier
+  const createReceiptResponse = await client.createReceipts(keyPair, false).content.createReceiptResponse;
+  
+  ```
+
+  `Receipt` assets can either be assigned to the default digital rights signature (DRS) or a unique DRS. When assets have different DRS identifiers they are **not** mutually interchangeable with each other.
+  
+  <details>
+  <summary>Response Content</summary>
+  <br/>
+
+  ```json
+  {
+      "asset": {
+          "asset": {
+              "Receipt": {
+                  "amount": 1000,
+                  "drs_tx_hash": "g7d07...6704b"
+              }
+          },
+          "metadata": null
+      },
+      "to_address": "a0b08...c02e5",
+      "tx_hash": "g7d07...6704b"
+  }
+  ```
+
+  * `drs_tx_hash`: The DRS identifier associated with the created `Receipt` assets.
+  
 </details>
 
-### Making Token Payments
+### Spending Tokens
 
 * `makeTokenPayment`
 
@@ -351,19 +473,56 @@ Since a seed phrase can be used to reconstruct lost/missing key-pairs, it is cus
   // Initialize the client correctly
   ...
 
+  // All key-pairs
   const allKeypairs = getAllKeypairs();
+
+  // Change/excess key-pair
+  const changeKeyPair = allKeypairs[0];
 
   await makeTokenPayment(
         "d0e72...85b46", // Payment address
         10,              // Payment amount
         allKeypairs,     // All key-pairs
-        allKeypairs[0],  // Excess/change address
+        changeKeyPair,   // Excess/change address
     );
 
   ```
 
   ***NB***: *The `makeTokenPayment` method will not check validity of the payment address. It is therefore crucial to ensure a valid payment address is used before the payment gets made.*
 
+### Spending Receipts
+
+* `makeReceiptPayment`
+
+  ``` typescript
+  import { ZenottaInstance } from '@zenotta/zenotta-js';
+  
+  const client = new ZenottaInstance();
+  
+  // Initialize the client correctly
+  ...
+  
+  // All key-pairs
+  const keyPairs = getAllKeypairs();
+  
+  // Change/excess key-pair
+  const changeKeyPair = keyPairs[0];
+  
+  // DRS identifier (the default DRS identifier or a unique DRS identifier)
+  const drsTxHash = "default_drs_tx_hash";
+  
+  await makeReceiptPayment(
+          "d0e72...85b46", // Payment address
+          10,              // Payment amount
+          drsTxHash        // DRS identifier
+          allKeypairs,     // All key-pairs
+          changeKeyPair,   // Excess/change address
+      );
+  
+  ```
+  
+  ***NB***: *The `makeReceiptPayment` method is similar to the `makeTokenPayment` in many regards, one of which being the fact that this method will send `Receipt` assets to a payment address in a unidirectional fashion and does not expect any assets in return. It should not be confused with **receipt-based** payments!*
+  
 ### Making Receipt-based Payments
 
 * `makeReceiptPayment`
@@ -376,13 +535,28 @@ Since a seed phrase can be used to reconstruct lost/missing key-pairs, it is cus
   // Initialize the client correctly
   ...
 
+  // All key-pairs
   const allKeypairs = getAllKeypairs();
 
+  // Receive address (which is also the excess/change address)
+  const receivingAddress = allKeypairs[0];
+
+  // The asset we want to send
+  const sendingAsset = initIAssetToken({"Token": 10});
+
+  // The asset we want to receive
+  const receivingAsset = initIAssetReceipt({
+    "Receipt": {
+        "amount": 10,
+        "drs_tx_hash": "default_drs_tx_hash"
+    }});
+
   const paymentResult = await makeRbPayment(
-        "d0e72...85b46", // Payment address
-        10,              // Payment amount
-        allKeypairs,     // All key-pairs
-        allKeypairs[0],  // Receive address (which is also the excess/change address)
+        "18f70...caeda",  // Payment address
+        sendingAsset,     // Payment asset
+        receivingAsset,   // Receiving asset
+        allKeypairs,      // All key-pairs
+        receivingAddress, // Receive address
     );
 
     const { druid, encryptedTx } = paymentResult.content.makeRbPaymentResponse;
@@ -393,8 +567,9 @@ Since a seed phrase can be used to reconstruct lost/missing key-pairs, it is cus
 
   ```
 
-### Fetching Pending Receipt-based Payments
+  ***NB***: *This type of transaction is a Dual-Double-Entry (DDE) transaction, and requires all parties to reach common consent before their respective transactions are sent to the compute node for processing.*
 
+### Fetching Pending Receipt-based Payments
 
 * `fetchPendingRbTransactions`
   
@@ -406,79 +581,92 @@ Since a seed phrase can be used to reconstruct lost/missing key-pairs, it is cus
   // Initialize the client correctly
   ...
 
+  // ALl key-pairs
   const allKeypairs = getAllKeypairs();
 
+  // All encrypted transactions
   const allEncryptedTxs = getAllEncryptedTxs();
 
+  // Fetch pending receipt-based payments
   const pendingRbTransactionsResult = await client.fetchPendingRbTransactions(
         allKeypairs,
         allEncryptedTxs:,
     )
 
-  const pendingRbTransactions: IFetchPendingRbResponse = pendingRbTransactionsResult.content.fetchPendingRbTransactionsResponse;
+  const pendingRbTransactions: IResponseIntercom<IPendingRbTxDetails> = pendingRbTransactionsResult.content.fetchPendingRbResponse;
 
   ```
 
-<details>
-<summary>Response Content</summary>
-<br/>
-
-```json
-{
-    "18c32...a8478": {
-        "timestamp": 1646992748926,
-        "value": {
-            "DRUID0xf60aa3e17": {
-                "senderAsset": "Token",
-                "senderAmount": 1000,
-                "senderAddress": "18c32...a8478",
-                "receiverAsset": "Receipt",
-                "receiverAmount": 1,
-                "receiverAddress": "1a8a7...eb901",
-                "fromAddr": "32a18...07816",
-                "status": "pending"
-            }
-        }
-    }
-}
-```
-
-From this data structure we're able to obtain specific details about the receipt-based payment, such as the unique identifier `DRUID0xf60aa3e17`, the status of the transaction `status`, the timestamp of the transaction `timestamp`, as well as the address that made the receipt-based payment request- `18c32...a8478`.
-
-We are also able to see that in this specific request, the sender expects 1 `Receipt` asset in exchange for 1000 `Token` assets.
-</details>
-
+  <details>
+  <summary>Response Content</summary>
+  <br/>
+  
+  ```json
+  {
+      "2a646...f8b98": {
+          "timestamp": 1655117144145,
+          "value": {
+              "druid": "DRUID0xd0f407436f7f1fc494d7aee22939090e",
+              "senderExpectation": {
+                  "from": "",
+                  "to": "2a646...f8b98",
+                  "asset": {
+                      "Receipt": {
+                          "amount": 1,
+                          "drs_tx_hash": "default_drs_tx_hash"
+                      }
+                  }
+              },
+              "receiverExpectation": {
+                  "from": "295b2...8d4fa",
+                  "to": "18f70...caeda",
+                  "asset": {
+                      "Token": 25200
+                  }
+              },
+              "status": "pending",
+              "computeHost": "http://127.0.0.1:3003"
+          }
+      }
+  }
+  ```
+  
+  From this data structure we're able to obtain specific details about the receipt-based payment, such as the unique identifier `DRUID0xd0f407436f7f1fc494d7aee22939090e`, the status of the transaction `status`, the timestamp of the transaction `timestamp`, as well as the address that made the receipt-based payment request- `2a646...f8b98`.
+  
+  We are also able to see that in this specific request, the sender expects 1 `Receipt` asset in exchange for 25200 `Token` assets.
+  </details>
+  
 ### Responding to Pending Receipt-based Payments
 
 * `acceptRbTx` and `rejectRbTx`
 
-```typescript
-import { ZenottaInstance } from '@zenotta/zenotta-js';
+  ```typescript
+  import { ZenottaInstance } from '@zenotta/zenotta-js';
+  
+  const client = new ZenottaInstance();
+  
+  // Initialize the client correctly
+  ...
+  
+  // Fetch the pending receipt-based payments from the network
+  ...
+  const pendingRbTransactions: IFetchPendingRbResponse = pendingRbTransactionsResult.content.fetchPendingRbResponse;
+  
+  // Fetch all existing key-pairs
+  ...
+  const allKeypairs = getAllKeypairs();
+  
+  // Accept a receipt-based payment using its unique `DRUID` identifier
+  await client.acceptRbTx('DRUID0xd0f407436f7f1fc494d7aee22939090e', pendingRbTransactions, allKeypairs);
+  
+  <!-- --------------------------------- OR ---------------------------------- -->
+  
+  // Reject a receipt-based payment using its unique `DRUID` identifier
+  await client.rejectRbTx('DRUID0xd0f407436f7f1fc494d7aee22939090e', pendingRbTransactions, allKeypairs);
+  ```
 
-const client = new ZenottaInstance();
-
-// Initialize the client correctly
-...
-
-// Fetch the pending receipt-based payments from the network
-...
-const pendingRbTransactions: IFetchPendingRbResponse = pendingRbTransactionsResult.content.fetchPendingRbTransactionsResponse;
-
-// Fetch all existing key-pairs
-...
-const allKeypairs = getAllKeypairs();
-
-// Accept a receipt-based payment using its unique `DRUID` identifier
-await client.acceptRbTx('DRUID0xf60aa3e17', pendingRbTransactions, allKeypairs);
-
-<!-- --------------------------------- OR ---------------------------------- -->
-
-// Reject a receipt-based payment using its unique `DRUID` identifier
-await client.rejectRbTx('DRUID0xf60aa3e17', pendingRbTransactions, allKeypairs);
-```
-
-Receipt-based transactions are accepted **or** rejected by passing their unique DRUID identifier as an argument to the corresponding methods.
-
+  Receipt-based transactions are accepted **or** rejected by passing their unique DRUID identifier as an argument to the corresponding methods.
+  
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 ## Client Response Type
@@ -498,8 +686,10 @@ export type IClientResponse = {
 
 * `status`: A general indication of success or failure for the method being used
 
-* `id`: A unqiue identifier used for network interactions
+* `id`: A unique identifier used for network interactions
 
 * `reason`: Detailed feedback corresponding to the `status` field
 
 * `content`: Data structures or values returned from the client object
+
+<p align="right">(<a href="#top">back to top</a>)</p>

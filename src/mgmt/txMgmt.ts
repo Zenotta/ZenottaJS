@@ -6,7 +6,7 @@ import { err, Ok, ok } from 'neverthrow';
 import {
     IFetchBalanceResponse,
     IKeypair,
-    SyncResult,
+    IResult,
     ICreateTxIn,
     IErrorInternal,
     IDdeValues,
@@ -16,7 +16,17 @@ import {
     ITxOut,
     ICreateTransaction,
 } from '../interfaces';
-import { getStringBytes } from '../utils';
+import {
+    isOfTypeIAssetToken,
+    initIAssetToken,
+    initIAssetReceipt,
+    lhsAssetIsLessThanRhsAsset,
+    assetsAreCompatible,
+    getStringBytes,
+    addLhsAssetToRhsAsset,
+    lhsAssetIsGreaterThanRhsAsset,
+    subRhsAssetFromLhsAsset,
+} from '../utils';
 import { ZNP_NETWORK_VERSION } from './constants';
 import { getAddressVersion } from './keyMgmt';
 import { constructSignature, constructTxInSignableData } from './scriptMgmt';
@@ -26,52 +36,63 @@ import { constructSignature, constructTxInSignableData } from './scriptMgmt';
 /* -------------------------------------------------------------------------- */
 
 /**
- * Gather `TxIn` values for a transaction
+ * Gather `TxIn` (input) values for a transaction
  *
  * @export
- * @param {number} paymentAmount
- * @param {('Token' | 'Receipt')} paymentAsset
- * @param {IFetchBalanceResponse} fetchBalanceResponse
- * @param {Map<string, IKeypair>} allKeypairs
- * @return {*}  {SyncResult<[string[], number, ICreateTxIn[]]>}
+ * @param {(IAssetToken | IAssetReceipt)} paymentAsset - Required payment asset to gather inputs for
+ * @param {IFetchBalanceResponse} fetchBalanceResponse - Balance as received from the network
+ * @param {Map<string, IKeypair>} allKeypairs - A map of all existing key-pairs owned by the sender
+ * @return {*}  {(IResult<[string[], IAssetToken | IAssetReceipt, ICreateTxIn[]]>)}
  */
 export function getInputsForTx(
-    paymentAmount: number,
-    paymentAsset: 'Token' | 'Receipt',
+    paymentAsset: IAssetToken | IAssetReceipt,
     fetchBalanceResponse: IFetchBalanceResponse,
     allKeypairs: Map<string, IKeypair>,
-): SyncResult<[string[], number, ICreateTxIn[]]> {
+): IResult<[string[], IAssetToken | IAssetReceipt, ICreateTxIn[]]> {
     // Check to see if there's enough funds
-    const enoughRunningTotal =
-        paymentAsset == 'Token'
-            ? fetchBalanceResponse.total.tokens >= paymentAmount
-            : paymentAsset == 'Receipt'
-            ? fetchBalanceResponse.total.receipts >= paymentAmount
-            : false; /* Incorrect asset type */
+    const isOfTypeAssetToken = isOfTypeIAssetToken(paymentAsset);
+    const enoughRunningTotal = isOfTypeAssetToken
+        ? paymentAsset.Token <= fetchBalanceResponse.total.tokens
+        : paymentAsset.Receipt.amount <=
+          fetchBalanceResponse.total.receipts[paymentAsset.Receipt.drs_tx_hash];
 
     if (enoughRunningTotal) {
-        let totalAmountGathered = 0;
+        // Initialize the total amount gathered; apply DRS transaction hash where required
+        let totalAmountGathered: IAssetToken | IAssetReceipt = isOfTypeAssetToken
+            ? initIAssetToken()
+            : initIAssetReceipt({
+                  Receipt: { amount: 0, drs_tx_hash: paymentAsset.Receipt.drs_tx_hash },
+              });
+        // A list of all addresses which no longer contain usable assets after this transaction is created
         const usedAddresses: string[] = [];
         const inputs = Object.entries(fetchBalanceResponse.address_list).map(
             ([address, outPoints]) => {
                 const ICreateTxIn: ICreateTxIn[] = [];
                 const keyPair = allKeypairs.get(address);
-                if (!keyPair) throw new Error(IErrorInternal.UnableToConstructTxIns);
+                if (!keyPair) return err(IErrorInternal.UnableToGetKeypair);
                 let usedOutpointsCount = 0;
                 outPoints.forEach(({ out_point, value }) => {
-                    if (
-                        totalAmountGathered < paymentAmount &&
-                        Object.keys(value).indexOf(paymentAsset) !==
-                            -1 /* Ensure this `OutPoint` contains the correct asset type */
-                    ) {
+                    const lhsAssetIsLess = lhsAssetIsLessThanRhsAsset(
+                        totalAmountGathered,
+                        paymentAsset,
+                    );
+                    if (lhsAssetIsLess.isErr()) return err(lhsAssetIsLess.error);
+                    // Ensure that the assets are compatible
+                    const assetsCompatible = assetsAreCompatible(paymentAsset, value);
+                    if (lhsAssetIsLess.value && assetsCompatible) {
+                        // Construct signature data
                         const signableData = constructTxInSignableData(out_point);
-                        const signature = signableData
-                            ? constructSignature(getStringBytes(signableData), keyPair.secretKey)
-                            : ok('');
+                        if (signableData === null)
+                            return err(IErrorInternal.UnableToConstructSignature);
+                        const signature = constructSignature(
+                            getStringBytes(signableData),
+                            keyPair.secretKey,
+                        );
                         const addressVersion = getAddressVersion(keyPair.publicKey, address);
                         if (addressVersion.isErr()) return err(addressVersion.error);
                         if (signature.isErr()) return err(signature.error);
 
+                        // Create script value for outpoint
                         const ICreateTxInScript = {
                             Pay2PkH: {
                                 signable_data: signableData || '',
@@ -81,13 +102,16 @@ export function getInputsForTx(
                             },
                         };
 
+                        // Push the used outpoint and its corresponding script
                         ICreateTxIn.push({
                             previous_out: out_point,
                             script_signature: ICreateTxInScript,
                         });
 
                         // Update the amount gathered and used addresses
-                        totalAmountGathered += value[paymentAsset];
+                        const assetAddition = addLhsAssetToRhsAsset(value, totalAmountGathered);
+                        if (assetAddition.isErr()) return err(assetAddition.error);
+                        totalAmountGathered = assetAddition.value;
                         usedOutpointsCount++;
                         if (outPoints.length == usedOutpointsCount) {
                             // We have used all of the inputs this address has to offer,
@@ -120,32 +144,24 @@ export function getInputsForTx(
 }
 
 /**
- *
- * Creates a transaction structure for sending to the network.
- *
- *  This function will return the `CreateTransaction` struct the,
- *  used addresses as well as an indication of whether there
- *  was an excess. It will return undefined if creating the structure
- *  was unsuccessful.
+ * Base function used to create a transaction suitable for processing by a compute node
  *
  * @export
- * @param {string} paymentAddress
- * @param {number} amount
- * @param {('Token' | 'Receipt')} assetType
- * @param {string} excessAddress
- * @param {(IDdeValues | null)} druidInfo
- * @param {[string[], number, ICreateTxIn[]]} txIns
- * @return {*}  {SyncResult<ICreateTxPayload>}
+ * @param {string} paymentAddress - Address to make the payment to
+ * @param {(IAssetToken | IAssetReceipt)} paymentAsset - The asset to send
+ * @param {string} excessAddress - The address to send excess funds/assets to
+ * @param {(IDdeValues | null)} druidInfo - DRUID information associated with this transaction
+ * @param {([string[], IAssetToken | IAssetReceipt, ICreateTxIn[]])} txIns - `TxIn` values used in this transaction
+ * @return {*}  {IResult<ICreateTxPayload>}
  */
-export function CreateTx(
+export function createTx(
     paymentAddress: string,
-    amount: number,
-    assetType: 'Token' | 'Receipt',
+    paymentAsset: IAssetToken | IAssetReceipt,
     excessAddress: string,
     druidInfo: IDdeValues | null,
-    txIns: [string[], number, ICreateTxIn[]],
-): SyncResult<ICreateTxPayload> {
-    // Inputs obtained for payment from `fetch_balance` response
+    txIns: [string[], IAssetToken | IAssetReceipt, ICreateTxIn[]],
+): IResult<ICreateTxPayload> {
+    // Inputs obtained for payment from fetching the balance from the network
     const [usedAddresses, totalAmountGathered, inputs] = txIns;
 
     // If there are no inputs, then we can't create a transaction
@@ -153,42 +169,32 @@ export function CreateTx(
         return err(IErrorInternal.NoInputs);
     }
 
-    // Amount to pay
-    const paymentAmount: IAssetToken | IAssetReceipt =
-        assetType == 'Token'
-            ? { Token: Number(amount) }
-            : { Receipt: Number(amount) }; /* Assume receipt asset type */
-
     // TxOut to payment address
     const outputs: ITxOut[] = [
         {
-            value: paymentAmount,
+            value: paymentAsset,
             locktime: 0,
-            drs_tx_hash: null,
             drs_block_hash: null,
             script_public_key: paymentAddress,
         },
     ];
 
     // If the total amount gathered is more than the amount requested,
-    // then we need to create a change/excess TxOut
-    const hasExcess = totalAmountGathered > amount;
-    if (hasExcess) {
-        const excessAmount = totalAmountGathered - amount;
-        const excess: IAssetToken | IAssetReceipt =
-            assetType == 'Token'
-                ? { Token: Number(excessAmount) }
-                : { Receipt: Number(excessAmount) };
-
+    // then we need to create a change/excess `TxOut`
+    const hasExcess = lhsAssetIsGreaterThanRhsAsset(totalAmountGathered, paymentAsset);
+    if (hasExcess.isErr()) return err(hasExcess.error);
+    else if (hasExcess.value) {
+        const excessAmount = subRhsAssetFromLhsAsset(totalAmountGathered, paymentAsset);
+        if (excessAmount.isErr()) return err(excessAmount.error);
         outputs.push({
-            value: excess,
+            value: excessAmount.value,
             locktime: 0,
-            drs_tx_hash: null,
             drs_block_hash: null,
             script_public_key: excessAddress,
         });
     }
 
+    // Create the transaction
     const createTransaction: ICreateTransaction = {
         inputs: inputs,
         outputs: outputs,
@@ -196,9 +202,10 @@ export function CreateTx(
         druid_info: druidInfo,
     };
 
+    // Value returned from function
     const returnValue: ICreateTxPayload = {
         createTx: createTransaction,
-        excessAddressUsed: hasExcess,
+        excessAddressUsed: hasExcess.value,
         usedAddresses: usedAddresses,
     };
 
@@ -206,25 +213,27 @@ export function CreateTx(
 }
 
 /**
- * Used to construct a regular token payment transaction to send to compute
+ * Create a payment transaction
  *
  * @export
- * @param {number} amount
- * @param {string} paymentAddress
- * @param {string} excessAddress
- * @param {IFetchBalanceResponse} fetchBalanceResponse
- * @param {Map<string, IKeypair>} allKeypairs
- * @return {*}  {SyncResult<ICreateTxPayload>}
+ * @param {string} paymentAddress - Address to make the payment to
+ * @param {(IAssetToken | IAssetReceipt)} paymentAsset - The asset(s) to pay
+ * @param {string} excessAddress - Address to assign excess asset(s) to
+ * @param {IFetchBalanceResponse} fetchBalanceResponse - Balance as fetched from the network
+ * @param {Map<string, IKeypair>} allKeypairs - A list of all existing key-pairs (encrypted)
+ * @return {*}
  */
-export function CreateTokenPaymentTx(
-    amount: number,
+export function createPaymentTx(
     paymentAddress: string,
+    paymentAsset: IAssetToken | IAssetReceipt,
     excessAddress: string,
     fetchBalanceResponse: IFetchBalanceResponse,
     allKeypairs: Map<string, IKeypair>,
-): SyncResult<ICreateTxPayload> {
-    const txIns = getInputsForTx(amount, 'Token', fetchBalanceResponse, allKeypairs);
+) {
+    // Gather inputs for the transaction
+    const txIns = getInputsForTx(paymentAsset, fetchBalanceResponse, allKeypairs);
     if (txIns.isErr()) return err(txIns.error);
 
-    return CreateTx(paymentAddress, amount, 'Token', excessAddress, null, txIns.value);
+    // Create the transaction
+    return createTx(paymentAddress, paymentAsset, excessAddress, null, txIns.value);
 }

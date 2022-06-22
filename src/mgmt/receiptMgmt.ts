@@ -1,41 +1,52 @@
-import { CreateTx, getInputsForTx } from './txMgmt';
-import { getStringBytes } from '../utils';
+import { createTx, getInputsForTx } from './txMgmt';
 import { RECEIPT_DEFAULT } from './constants';
 import { constructAddress, createSignature } from './keyMgmt';
 import { err, ok } from 'neverthrow';
 import { constructTxInSignableAssetHash } from './scriptMgmt';
 import {
-    SyncResult,
+    IResult,
     IReceiptCreationAPIPayload,
     IFetchBalanceResponse,
     IKeypair,
     ICreateTxPayload,
     IDruidExpectation,
     IDdeValues,
+    IAssetReceipt,
+    IDrsTxHashSpecification,
 } from '../interfaces';
+import { getStringBytes } from '../utils';
 
 /* -------------------------------------------------------------------------- */
 /*                            Transaction Creation                            */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Constructs a receipt creation API payload
+ * Create a payload needed to create receipt assets which is suitable for processing by a compute node
  *
- * @param secretKey {Uint8Array}
- * @param pubKey {Uint8Array}
- * @param version {number}
- * @param amount {number} Optional. Defaults to 1000
- * @returns
+ * @export
+ * @param {Uint8Array} secretKey - Secret key as Uint8Array
+ * @param {Uint8Array} pubKey - Public key as Uint8Array
+ * @param {(number | null)} version - Address version
+ * @param {number} [amount=RECEIPT_DEFAULT] - Amount of the asset to create
+ * @param {boolean} [default_drs_tx_hash=true] - Whether to use the default DRS transaction hash
+ * @return {*}  {IResult<IReceiptCreationAPIPayload>}
  */
 export function createReceiptPayload(
     secretKey: Uint8Array,
     pubKey: Uint8Array,
     version: number | null,
     amount: number = RECEIPT_DEFAULT,
-): SyncResult<IReceiptCreationAPIPayload> {
+    default_drs_tx_hash = true,
+): IResult<IReceiptCreationAPIPayload> {
     const address = constructAddress(pubKey, version);
     if (address.isErr()) return err(address.error);
-    const signableAssetHash = constructTxInSignableAssetHash('Receipt', amount);
+    const asset: IAssetReceipt = {
+        Receipt: {
+            amount,
+            drs_tx_hash: '', // TODO: Change this if signable data for creating receipt assets changes; currently not used to create signable data
+        },
+    };
+    const signableAssetHash = constructTxInSignableAssetHash(asset);
     const signature = createSignature(secretKey, getStringBytes(signableAssetHash));
     return ok({
         receipt_amount: amount,
@@ -43,62 +54,49 @@ export function createReceiptPayload(
         public_key: Buffer.from(pubKey).toString('hex'),
         signature: Buffer.from(signature).toString('hex'),
         version: version,
+        drs_tx_hash_spec: default_drs_tx_hash
+            ? IDrsTxHashSpecification.Default
+            : IDrsTxHashSpecification.Create,
     });
 }
 
 /**
- *  Creates one half of a receipt-based payment to send to compute
+ * Create one "half" of a receipt-based payment
  *
  * @export
- * @param {IFetchBalanceResponse} fetchBalanceResponse
- * @param {string} paymentAddress
- * @param {string} fullDruid
- * @param {string} fromValue
- * @param {number} sendAmount
- * @param {('Token' | 'Receipt')} sendAssetType
- * @param {number} receiveAmount
- * @param {('Token' | 'Receipt')} receiveAssetType
- * @param {string} receiveAddress
- * @param {string} excessAddress
- * @param {Map<string, IKeypair>} allKeypairs
- * @return {*}  {SyncResult<ICreateTxPayload>}
+ * @param {IFetchBalanceResponse} fetchBalanceResponse - Balance as received from the compute node
+ * @param {string} druid - Unique DRUID value associated with this transaction; needs to match the other "half" of this receipt-based payment
+ * @param {IDruidExpectation} senderExpectation - Expectation for the sender of this transaction
+ * @param {IDruidExpectation} receiverExpectation - Expectation for the receiver of this transaction
+ * @param {string} excessAddress - Address to send excess funds to (owned by sender of this "half" of the transaction)
+ * @param {Map<string, IKeypair>} allKeypairs - Map of all keypairs
+ * @return {*}  {IResult<ICreateTxPayload>}
  */
-export function CreateRbTxHalf(
+export function createRbTxHalf(
     fetchBalanceResponse: IFetchBalanceResponse,
-    paymentAddress: string,
-    fullDruid: string,
-    fromValue: string,
-    sendAmount: number,
-    sendAssetType: 'Token' | 'Receipt',
-    receiveAmount: number,
-    receiveAssetType: 'Token' | 'Receipt',
-    receiveAddress: string,
+    druid: string,
+    senderExpectation: IDruidExpectation,
+    receiverExpectation: IDruidExpectation,
     excessAddress: string,
     allKeypairs: Map<string, IKeypair>,
-): SyncResult<ICreateTxPayload> {
-    const txIns = getInputsForTx(sendAmount, sendAssetType, fetchBalanceResponse, allKeypairs);
+): IResult<ICreateTxPayload> {
+    // Gather `TxIn` values
+    const txIns = getInputsForTx(receiverExpectation.asset, fetchBalanceResponse, allKeypairs);
 
+    // Return error if gathering of `TxIn` values failed
     if (txIns.isErr()) return err(txIns.error); /* Inputs for this payment could not be found */
 
-    const druidExpectation: IDruidExpectation = {
-        from: fromValue,
-        to: receiveAddress,
-        asset:
-            receiveAssetType == 'Receipt'
-                ? { Receipt: Number(receiveAmount) }
-                : { Token: Number(receiveAmount) },
-    };
-
+    // Construct DRUID info
     const druidInfo: IDdeValues = {
-        druid: fullDruid,
+        druid,
         participants: 2 /* This is a receipt-based payment, hence two participants */,
-        expectations: [druidExpectation],
+        expectations: [senderExpectation],
     };
 
-    return CreateTx(
-        paymentAddress,
-        sendAmount,
-        sendAssetType,
+    // Create the transaction
+    return createTx(
+        receiverExpectation.to,
+        receiverExpectation.asset,
         excessAddress,
         druidInfo,
         txIns.value,

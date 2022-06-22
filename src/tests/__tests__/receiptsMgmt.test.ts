@@ -1,14 +1,16 @@
 /* eslint-disable jest/no-conditional-expect */
-import { IKeypair, IOutPoint, ICreateTxInScript } from '../../interfaces';
+import { IKeypair, IOutPoint, ICreateTxInScript, IDrsTxHashSpecification } from '../../interfaces';
 import {
     ADDRESS_VERSION,
     constructTxInsAddress,
     constructTxInSignableAssetHash,
+    DEFAULT_DRS_TX_HASH,
     generateDRUID,
     getInputsForTx,
 } from '../../mgmt';
 import * as receiptMgmt from '../../mgmt/receiptMgmt';
 import { ADDRESS_LIST_TEST, FETCH_BALANCE_RESPONSE_TEST } from '../constants';
+import { initIAssetReceipt, initIAssetToken, initIDruidExpectation } from '../../utils';
 
 test('creates a valid payload to create receipts', () => {
     const keypair = {
@@ -38,6 +40,8 @@ test('creates a valid payload to create receipts', () => {
             signature:
                 '08e2251bb12d8b4acf168404a11166868bc9222364ee66d545ab4c9e317d85ca420686b637319869ecba7bbf3aa268577ab434990847a3b32537e84ac5b1bd03',
             version: null,
+            drs_tx_hash_spec:
+                IDrsTxHashSpecification.Default /* Create generic Receipt assets instead of a tracked Receipt assets */,
         });
     }
 });
@@ -53,16 +57,26 @@ test('create transaction for the SEND portion of a receipt-based payment', () =>
         });
     }
 
-    const createTransaction = receiptMgmt.CreateRbTxHalf(
+    const createTransaction = receiptMgmt.createRbTxHalf(
         FETCH_BALANCE_RESPONSE_TEST,
-        'their_payment_address',
         'full_druid',
-        'their_from_value',
-        1050,
-        'Token',
-        1,
-        'Receipt',
-        'our_receive_address',
+        initIDruidExpectation({
+            asset: {
+                Receipt: {
+                    amount: 1,
+                    drs_tx_hash: DEFAULT_DRS_TX_HASH,
+                },
+            },
+            from: 'their_from_value',
+            to: 'our_receive_address',
+        }),
+        initIDruidExpectation({
+            asset: {
+                Token: 1050,
+            },
+            from: 'our_from_value',
+            to: 'their_receive_address',
+        }),
         'excess_address',
         keyPairMap,
     );
@@ -87,14 +101,12 @@ test('create transaction for the SEND portion of a receipt-based payment', () =>
                 {
                     value: { Token: 1050 } /* Amount payed */,
                     locktime: 0,
-                    drs_tx_hash: null,
                     drs_block_hash: null,
-                    script_public_key: 'their_payment_address',
+                    script_public_key: 'their_receive_address',
                 },
                 {
                     value: { Token: 10 } /* Change/excess */,
                     locktime: 0,
-                    drs_tx_hash: null,
                     drs_block_hash: null,
                     script_public_key: 'excess_address',
                 },
@@ -168,7 +180,12 @@ test('create transaction for the SEND portion of a receipt-based payment', () =>
                     druid: 'full_druid',
                     expectations: [
                         {
-                            asset: { Receipt: 1 },
+                            asset: {
+                                Receipt: {
+                                    amount: 1,
+                                    drs_tx_hash: DEFAULT_DRS_TX_HASH,
+                                },
+                            },
                             from: 'their_from_value',
                             to: 'our_receive_address',
                         },
@@ -191,16 +208,26 @@ test('create transaction for the RECEIVE portion of a receipt-based payment', ()
         });
     }
 
-    const createTransaction = receiptMgmt.CreateRbTxHalf(
+    const createTransaction = receiptMgmt.createRbTxHalf(
         FETCH_BALANCE_RESPONSE_TEST,
-        'their_payment_address',
         'full_druid',
-        'their_from_value',
-        1,
-        'Receipt',
-        1060,
-        'Token',
-        'our_receive_address',
+        initIDruidExpectation({
+            asset: {
+                Token: 1060,
+            },
+            from: 'their_from_value',
+            to: 'our_receive_address',
+        }),
+        initIDruidExpectation({
+            asset: {
+                Receipt: {
+                    amount: 1,
+                    drs_tx_hash: DEFAULT_DRS_TX_HASH,
+                },
+            },
+            from: 'our_from_value',
+            to: 'their_receive_address',
+        }),
         'excess_address',
         keyPairMap,
     );
@@ -223,16 +250,18 @@ test('create transaction for the RECEIVE portion of a receipt-based payment', ()
             const txOuts = createTx?.outputs;
             expect(txOuts).toStrictEqual([
                 {
-                    value: { Receipt: 1 } /* Amount payed */,
+                    value: {
+                        Receipt: { amount: 1, drs_tx_hash: DEFAULT_DRS_TX_HASH },
+                    } /* Amount payed */,
                     locktime: 0,
-                    drs_tx_hash: null,
                     drs_block_hash: null,
-                    script_public_key: 'their_payment_address',
+                    script_public_key: 'their_receive_address',
                 },
                 {
-                    value: { Receipt: 2 } /* Change/excess */,
+                    value: {
+                        Receipt: { amount: 2, drs_tx_hash: DEFAULT_DRS_TX_HASH },
+                    } /* Change/excess */,
                     locktime: 0,
-                    drs_tx_hash: null,
                     drs_block_hash: null,
                     script_public_key: 'excess_address',
                 },
@@ -299,7 +328,11 @@ test('create TxIns address used as `from` value in DdeValues', () => {
             version: ADDRESS_VERSION,
         });
     }
-    const txInputs = getInputsForTx(1050, 'Token', FETCH_BALANCE_RESPONSE_TEST, keyPairMap);
+    const txInputs = getInputsForTx(
+        initIAssetToken({ Token: 1050 }),
+        FETCH_BALANCE_RESPONSE_TEST,
+        keyPairMap,
+    );
 
     if (txInputs.isOk()) {
         const ourFromAddress = constructTxInsAddress(txInputs.value[2]).unwrapOr('');
@@ -312,20 +345,18 @@ test('create TxIns address used as `from` value in DdeValues', () => {
 //NOTE: This test corresponds with `test_construct_valid_tx_in_signable_asset_hash` in NAOM
 //TODO: Add test for `DataAsset` variant
 test('creates a valid signable asset hash value', () => {
-    type assetType = 'Token' | 'Receipt';
-    type assetVal = {
-        type: assetType;
-        amount: number;
-    };
-
-    const assetValues: assetVal[] = [
-        { type: 'Token', amount: 1 },
-        { type: 'Receipt', amount: 1 },
+    const signableTxInAssetHashes: string[] = [
+        constructTxInSignableAssetHash(initIAssetToken({ Token: 1 })),
+        constructTxInSignableAssetHash(
+            initIAssetReceipt({
+                Receipt: {
+                    amount: 1,
+                    drs_tx_hash:
+                        DEFAULT_DRS_TX_HASH /* Value is currently not used to generate signable hash */,
+                },
+            }),
+        ),
     ];
-
-    const signableTxInAssetHashes = Object.values(assetValues).map(({ type, amount }) => {
-        return constructTxInSignableAssetHash(type, amount);
-    });
 
     expect(signableTxInAssetHashes).toStrictEqual([
         'a5b2f5e8dcf824aee45b81294ff8049b680285b976cc6c8fa45eb070acfc5974',
@@ -337,6 +368,6 @@ test('generates a valid DRUID', () => {
     const druid = generateDRUID();
     if (druid.isOk()) {
         expect(druid.value.slice(0, 5)).toBe('DRUID');
-        expect(druid.value.length).toBe(16);
+        expect(druid.value.length).toBe(39);
     }
 });

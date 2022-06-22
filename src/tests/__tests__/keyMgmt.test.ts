@@ -4,9 +4,7 @@ import { bytesToBase64 } from 'byte-base64';
 import * as keyMgmt from '../../mgmt/keyMgmt';
 import { TEMP_ADDRESS_VERSION, ADDRESS_VERSION } from '../../mgmt';
 import { getHexStringBytes } from '../../utils';
-
-// Seeds have to be string only
-const SEED = 'army van defense carry jealous true garbage claim echo media make crunch';
+import { SEED } from '../constants';
 
 // Public keys for address generation
 const PUBLIC_KEYS = [

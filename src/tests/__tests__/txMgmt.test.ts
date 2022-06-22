@@ -1,8 +1,9 @@
 /* eslint-disable jest/no-conditional-expect */
-import { IKeypair, IOutPoint, ICreateTxInScript } from '../../interfaces';
+import { IKeypair, IOutPoint, ICreateTxInScript, IErrorInternal } from '../../interfaces';
 import { ADDRESS_VERSION } from '../../mgmt';
 import * as txMgmt from '../../mgmt/txMgmt';
 import { ADDRESS_LIST_TEST, FETCH_BALANCE_RESPONSE_TEST } from '../constants';
+import { initIAssetToken } from '../../utils';
 
 test('create transaction for a token amount', () => {
     const keyPairMap = new Map<string, IKeypair>();
@@ -15,18 +16,24 @@ test('create transaction for a token amount', () => {
         });
     }
 
-    const createTransaction = txMgmt.CreateTokenPaymentTx(
-        1050,
+    /*
+     * Success Tests
+     */
+    const createTransactionSuccess = txMgmt.createPaymentTx(
         'payment_address',
+        initIAssetToken({ Token: 1050 }),
         'excess_address',
         FETCH_BALANCE_RESPONSE_TEST,
         keyPairMap,
     );
 
-    if (createTransaction.isOk()) {
+    // Transaction created successfully
+    expect(createTransactionSuccess.isOk()).toBe(true);
+
+    if (createTransactionSuccess.isOk()) {
         const [createTx, usedAddresses] = [
-            createTransaction.value.createTx,
-            createTransaction.value.usedAddresses,
+            createTransactionSuccess.value.createTx,
+            createTransactionSuccess.value.usedAddresses,
         ];
 
         // From here we assume the create transaction struct is created correctly
@@ -44,14 +51,12 @@ test('create transaction for a token amount', () => {
                 {
                     value: { Token: 1050 } /* Amount payed */,
                     locktime: 0,
-                    drs_tx_hash: null,
                     drs_block_hash: null,
                     script_public_key: 'payment_address',
                 },
                 {
                     value: { Token: 10 } /* Change/excess */,
                     locktime: 0,
-                    drs_tx_hash: null,
                     drs_block_hash: null,
                     script_public_key: 'excess_address',
                 },
@@ -119,4 +124,20 @@ test('create transaction for a token amount', () => {
             ]);
         }
     }
+
+    /*
+     * Failure Tests
+     */
+
+    //Insufficient funds available
+    const createTransactionFailure = txMgmt.createPaymentTx(
+        'payment_address',
+        initIAssetToken({ Token: 99999 }) /* Insufficient funds */,
+        'excess_address',
+        FETCH_BALANCE_RESPONSE_TEST,
+        keyPairMap,
+    );
+    expect(createTransactionFailure._unsafeUnwrapErr()).toStrictEqual(
+        IErrorInternal.InsufficientFunds,
+    );
 });

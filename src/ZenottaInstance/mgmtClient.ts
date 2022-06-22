@@ -1,17 +1,20 @@
-import { bytesToBase64, base64ToBytes } from 'byte-base64';
+import { base64ToBytes, bytesToBase64 } from 'byte-base64';
 import nacl from 'tweetnacl';
-import { TEMP_ADDRESS_VERSION, ADDRESS_VERSION, SEED_REGEN_THRES, generateDRUID } from '../mgmt';
-import { truncateByBytesUTF8, getStringBytes, getBytesString, concatTypedArrays } from '../utils';
-import { v4 as uuidv4 } from 'uuid';
-import * as bitcoreLib from 'bitcore-lib';
 import {
+    ADDRESS_VERSION,
     constructAddress,
+    generateDRUID,
     generateMasterKey,
     generateNewKeypairAndAddress,
     generateSeed,
+    getAddressVersion,
     getNextDerivedKeypair,
     getPassphraseBuffer,
-} from '../mgmt/keyMgmt';
+    SEED_REGEN_THRES,
+    TEMP_ADDRESS_VERSION,
+} from '../mgmt';
+import { v4 as uuidv4 } from 'uuid';
+import * as bitcoreLib from 'bitcore-lib';
 import {
     ICreateTransaction,
     ICreateTransactionEncrypted,
@@ -20,10 +23,10 @@ import {
     IKeypairEncrypted,
     IMasterKey,
     IMasterKeyEncrypted,
-    SyncResult,
+    IResult,
 } from '../interfaces';
 import { err, ok } from 'neverthrow';
-import { getAddressVersion } from '../mgmt/keyMgmt';
+import { concatTypedArrays, getBytesString, getStringBytes, truncateByBytesUTF8 } from '../utils';
 
 export class mgmtClient {
     private passphraseKey: Uint8Array;
@@ -51,10 +54,10 @@ export class mgmtClient {
      * Init the client without providing a master key or seed phrase
      *
      * @param {string} passphraseKey
-     * @return {*}  {SyncResult<[string, IMasterKeyEncrypted]>}
+     * @return {*}  {IResult<[string, IMasterKeyEncrypted]>}
      * @memberof mgmtClient
      */
-    public initNew(passphraseKey: string): SyncResult<[string, IMasterKeyEncrypted]> {
+    public initNew(passphraseKey: string): IResult<[string, IMasterKeyEncrypted]> {
         const passphrase = getPassphraseBuffer(passphraseKey);
         if (passphrase.isErr()) return err(passphrase.error);
         this.passphraseKey = passphrase.value;
@@ -64,10 +67,10 @@ export class mgmtClient {
         const newMasterKey = generateMasterKey(generatedSeed.value);
         if (newMasterKey.isErr()) return err(newMasterKey.error);
         this.masterKey = newMasterKey.value;
-        const saveResult = this.encryptMasterKey(newMasterKey.value, passphrase.value);
-        if (saveResult && saveResult.isErr()) return err(saveResult.error);
+        const saveIResult = this.encryptMasterKey(newMasterKey.value, passphrase.value);
+        if (saveIResult && saveIResult.isErr()) return err(saveIResult.error);
         this.seedPhrase = generatedSeed.value;
-        return ok([generatedSeed.value, saveResult.value]);
+        return ok([generatedSeed.value, saveIResult.value]);
     }
 
     /**
@@ -75,13 +78,10 @@ export class mgmtClient {
      *
      * @param {string} passphraseKey
      * @param {IMasterKeyEncrypted} masterKey
-     * @return {*}  {SyncResult<void>}
+     * @return {*}  {IResult<void>}
      * @memberof mgmtClient
      */
-    public initFromMasterKey(
-        passphraseKey: string,
-        masterKey: IMasterKeyEncrypted,
-    ): SyncResult<void> {
+    public initFromMasterKey(passphraseKey: string, masterKey: IMasterKeyEncrypted): IResult<void> {
         const passphrase = getPassphraseBuffer(passphraseKey);
         if (passphrase.isErr()) return err(passphrase.error);
         this.passphraseKey = passphrase.value;
@@ -97,75 +97,72 @@ export class mgmtClient {
      *
      * @param {string} passphraseKey
      * @param {string} seedPhrase
-     * @return {*}  {SyncResult<IMasterKeyEncrypted>}
+     * @return {*}  {IResult<IMasterKeyEncrypted>}
      * @memberof mgmtClient
      */
-    public initFromSeed(
-        passphraseKey: string,
-        seedPhrase: string,
-    ): SyncResult<IMasterKeyEncrypted> {
+    public initFromSeed(passphraseKey: string, seedPhrase: string): IResult<IMasterKeyEncrypted> {
         const passphrase = getPassphraseBuffer(passphraseKey);
         if (passphrase.isErr()) return err(passphrase.error);
         this.passphraseKey = passphrase.value;
         const newMasterKey = generateMasterKey(seedPhrase);
         if (newMasterKey.isErr()) return err(newMasterKey.error);
         this.masterKey = newMasterKey.value;
-        const saveResult = this.encryptMasterKey(newMasterKey.value, passphrase.value);
-        if (saveResult && saveResult.isErr()) return err(saveResult.error);
+        const saveIResult = this.encryptMasterKey(newMasterKey.value, passphrase.value);
+        if (saveIResult && saveIResult.isErr()) return err(saveIResult.error);
         this.seedPhrase = seedPhrase;
-        return ok(saveResult.value);
+        return ok(saveIResult.value);
     }
 
     /**
      * Get a new address
      *
      * @param {string[]} allAddresses
-     * @return {*}  {SyncResult<IKeypairEncrypted>}
+     * @return {*}  {IResult<IKeypairEncrypted>}
      * @memberof mgmtClient
      */
-    public getNewKeypair(allAddresses: string[]): SyncResult<IKeypairEncrypted> {
-        const newKeyPairResult = generateNewKeypairAndAddress(
+    public getNewKeypair(allAddresses: string[]): IResult<IKeypairEncrypted> {
+        if (this.masterKey === undefined) return err(IErrorInternal.UnableToGetExistingMasterKey);
+        const newKeyPairIResult = generateNewKeypairAndAddress(
             this.masterKey,
             ADDRESS_VERSION,
             allAddresses,
         );
-        if (newKeyPairResult.isErr()) return err(newKeyPairResult.error);
-        const keypair = newKeyPairResult.value;
-        const saveResult = this.encryptKeypair(keypair);
-        return saveResult;
+        if (newKeyPairIResult.isErr()) return err(newKeyPairIResult.error);
+        const keypair = newKeyPairIResult.value;
+        return this.encryptKeypair(keypair);
     }
 
     /**
      * Generate a new seed phrase
      *
-     * @return {*}  {SyncResult<string>}
+     * @return {*}  {IResult<string>}
      * @memberof mgmtClient
      */
-    public getNewSeedPhrase(): SyncResult<string> {
+    public getNewSeedPhrase(): IResult<string> {
         return generateSeed();
     }
 
     /**
      * Get the existing seed phrase from the client
      *
-     * @return {*}  {SyncResult<string>}
+     * @return {*}  {IResult<string>}
      * @memberof mgmtClient
      */
-    public getSeedPhrase(): SyncResult<string> {
+    public getSeedPhrase(): IResult<string> {
         if (this.seedPhrase) return ok(this.seedPhrase);
-        else return err(IErrorInternal.UnableToGenerateSeed);
+        else return err(IErrorInternal.UnableToGetExistingSeed);
     }
 
     /**
      * Test a seed phrase to see if it's valid
      *
      * @param {string} seedPhrase
-     * @return {*}  {SyncResult<void>}
+     * @return {*}  {IResult<void>}
      * @memberof mgmtClient
      */
-    public testSeedPhrase(seedPhrase: string): SyncResult<void> {
-        const result = generateMasterKey(seedPhrase);
-        if (result.isErr()) return err(result.error);
+    public testSeedPhrase(seedPhrase: string): IResult<void> {
+        const IResult = generateMasterKey(seedPhrase);
+        if (IResult.isErr()) return err(IResult.error);
         else return ok(undefined);
     }
 
@@ -174,13 +171,13 @@ export class mgmtClient {
      *
      * @param {IMasterKey} masterKey
      * @param {Uint8Array} [passphrase]
-     * @return {*}  {SyncResult<IMasterKeyEncrypted>}
+     * @return {*}  {IResult<IMasterKeyEncrypted>}
      * @memberof mgmtClient
      */
     public encryptMasterKey(
         masterKey: IMasterKey,
         passphrase?: Uint8Array,
-    ): SyncResult<IMasterKeyEncrypted> {
+    ): IResult<IMasterKeyEncrypted> {
         try {
             const nonce = truncateByBytesUTF8(uuidv4(), 24);
             const secretKey = getStringBytes(masterKey.secret.xprivkey);
@@ -204,13 +201,13 @@ export class mgmtClient {
      *
      * @param {IMasterKeyEncrypted} masterKeyEncrypted
      * @param {Uint8Array} [passphrase]
-     * @return {*}  {SyncResult<IMasterKey>}
+     * @return {*}  {IResult<IMasterKey>}
      * @memberof mgmtClient
      */
     public decryptMasterKey(
         masterKeyEncrypted: IMasterKeyEncrypted,
         passphrase?: Uint8Array,
-    ): SyncResult<IMasterKey> {
+    ): IResult<IMasterKey> {
         try {
             const savedDetails = base64ToBytes(masterKeyEncrypted.save);
             const save = nacl.secretbox.open(
@@ -236,10 +233,10 @@ export class mgmtClient {
      * Encrypt a key-pair using the passphrase
      *
      * @param {IKeypair} keypair
-     * @return {*}  {SyncResult<IKeypairEncrypted>}
+     * @return {*}  {IResult<IKeypairEncrypted>}
      * @memberof mgmtClient
      */
-    public encryptKeypair(keypair: IKeypair): SyncResult<IKeypairEncrypted> {
+    public encryptKeypair(keypair: IKeypair): IResult<IKeypairEncrypted> {
         try {
             const nonce = truncateByBytesUTF8(uuidv4(), 24);
             const pubPriv = concatTypedArrays(keypair.publicKey, keypair.secretKey);
@@ -259,10 +256,10 @@ export class mgmtClient {
      * Decrypt a key-pair using the passphrase
      *
      * @param {IKeypairEncrypted} keypair
-     * @return {*}  {SyncResult<IKeypair>}
+     * @return {*}  {IResult<IKeypair>}
      * @memberof mgmtClient
      */
-    public decryptKeypair(keypair: IKeypairEncrypted): SyncResult<IKeypair> {
+    public decryptKeypair(keypair: IKeypairEncrypted): IResult<IKeypair> {
         try {
             const savedDetails = base64ToBytes(keypair.save);
             const save = nacl.secretbox.open(
@@ -302,13 +299,11 @@ export class mgmtClient {
     /**
      * Generate a new DRUID value
      *
-     * @param {boolean} [save=true]
-     * @return {*}  {SyncResult<string>}
+     * @return {*}  {IResult<string>}
      * @memberof mgmtClient
      */
-    public getNewDRUID(): SyncResult<string> {
+    public getNewDRUID(): IResult<string> {
         const newDRUID = generateDRUID();
-        // replace(/'/g, '"');
         if (newDRUID.isErr()) return err(newDRUID.error);
         return newDRUID;
     }
@@ -317,12 +312,12 @@ export class mgmtClient {
      * Encrypt a transaction using the passphrase
      *
      * @param {ICreateTransaction} transaction
-     * @return {*}  {SyncResult<ICreateTransactionEncrypted>}
+     * @return {*}  {IResult<ICreateTransactionEncrypted>}
      * @memberof mgmtClient
      */
     public encryptTransaction(
         transaction: ICreateTransaction,
-    ): SyncResult<ICreateTransactionEncrypted> {
+    ): IResult<ICreateTransactionEncrypted> {
         try {
             const nonce = truncateByBytesUTF8(uuidv4(), 24);
             const save = nacl.secretbox(
@@ -350,27 +345,27 @@ export class mgmtClient {
      */
     public getAllAddressesAndKeypairMap(
         allKeypairs: IKeypairEncrypted[],
-    ): [string[], Map<string, IKeypair>] {
+    ): IResult<[string[], Map<string, IKeypair>]> {
         const allAddresses = Object.values(allKeypairs).map((keypair) => keypair.address);
         const keyPairMap = new Map<string, IKeypair>();
         for (const keypair of allKeypairs) {
             const keyPair = this.decryptKeypair(keypair);
-            if (keyPair.isErr()) throw new Error(keyPair.error);
+            if (keyPair.isErr()) return err(keyPair.error);
             keyPairMap.set(keypair.address, keyPair.value);
         }
-        return [allAddresses, keyPairMap];
+        return ok([allAddresses, keyPairMap]);
     }
 
     /**
      * Decrypt a transaction using the passphrase
      *
      * @param {ICreateTransactionEncrypted} encryptedTx
-     * @return {*}  {SyncResult<ICreateTransaction>}
+     * @return {*}  {IResult<ICreateTransaction>}
      * @memberof mgmtClient
      */
     public decryptTransaction(
         encryptedTx: ICreateTransactionEncrypted,
-    ): SyncResult<ICreateTransaction> {
+    ): IResult<ICreateTransaction> {
         try {
             const savedDetails = base64ToBytes(encryptedTx.save);
             const save = nacl.secretbox.open(
@@ -388,18 +383,19 @@ export class mgmtClient {
     }
 
     /**
-     * Regenerate addresses from master key and a given set of addresses from UTXO set
+     * Regenerate addresses from a seed phrase and a set of addresses from UTXO set
      *
+     * @param seedPhrase - Seed phrase
      * @param {string[]} addressList
      * @param {number} [seedRegenThreshold=SEED_REGEN_THRES]
-     * @return {*}  {SyncResult<Set<string>>}
+     * @return {*}  {IResult<Set<string>>}
      * @memberof mgmtClient
      */
     public regenAddresses(
         seedPhrase: string,
         addressList: string[],
         seedRegenThreshold: number = SEED_REGEN_THRES,
-    ): SyncResult<IKeypair[]> {
+    ): IResult<IKeypair[]> {
         const masterKey = generateMasterKey(seedPhrase);
         if (masterKey.isErr()) return err(masterKey.error);
         this.seedPhrase = seedPhrase;
@@ -455,10 +451,10 @@ export class mgmtClient {
     /**
      * Get the existing master key from the client
      *
-     * @return {*}  {SyncResult<IMasterKeyEncrypted>}
+     * @return {*}  {IResult<IMasterKeyEncrypted>}
      * @memberof mgmtClient
      */
-    public getMasterKey(): SyncResult<IMasterKeyEncrypted> {
+    public getMasterKey(): IResult<IMasterKeyEncrypted> {
         if (!this.masterKey) return err(IErrorInternal.UnableToGetExistingMasterKey);
         const encryptedMasterKey = this.encryptMasterKey(this.masterKey);
         if (encryptedMasterKey.isErr()) return err(encryptedMasterKey.error);
