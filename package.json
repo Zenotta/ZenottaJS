@@ -45,7 +45,7 @@
     "eslint-plugin-typesafe": "^0.5.2",
     "jest": "27.5.1",
     "microbundle": "^0.14.2",
-    "prettier": "2.5.1",
+    "prettier": "^2.5.1",
     "rimraf": "^3.0.2",
     "ts-jest": "27.1.3",
     "tslib": "^2.3.1",
@@ -56,7 +56,7 @@
   ],
   "dependencies": {
     "axios": "^0.26.0",
-    "bitcore-lib": "^8.25.25",
+    "bitcore-lib": "^8.25.30",
     "bitcore-mnemonic": "^8.25.25",
     "byte-base64": "^1.1.0",
     "js-sha3": "^0.8.0",

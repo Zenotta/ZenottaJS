@@ -14,6 +14,10 @@ import {
     IGetMempoolSignatureResponse
 } from '.';
 
+import {
+    IFetchBtcUtxoResponse
+} from '../bridge/interfaces';
+
 // Config needed for initialization
 export type IClientConfig = {
     computeHost: string;
@@ -45,6 +49,7 @@ export type IContentType = {
     initNewResponse?: [string, IMasterKeyEncrypted];
     initFromSeedResponse?: IMasterKeyEncrypted;
     regenWalletResponse?: IKeypairEncrypted[];
+    fetchBtcUtxoResponse?: IFetchBtcUtxoResponse;
 } & IApiContentType;
 
 // Content received from compute node / intercom server API endpoints
