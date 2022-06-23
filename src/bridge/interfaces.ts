@@ -1,5 +1,3 @@
-import { PrivateKey, Address, Script } from "bitcore-lib";
-
 /**
  * Interface for relationship between 2 partners for a bridge trade. 
  * The status indicates at what point in the trade the relationship is. 
@@ -39,20 +37,15 @@ export type IFreshTest = {
 /*                       Interfaces for BitCoin                               */
 /* -------------------------------------------------------------------------- */
 
-export type IBtcTxMaterial = {
-    privateKey: PrivateKey,
-    ourAddress: Address,
-    theirAddress: Address,
-    satoshiAmount: number,
-    fee: number,
-    inputCount: number
-}
-
-export type IBtcTransaction = {
-
-}
-
 export type IFetchBtcUtxoResponse = {
     inputs: any[]; // unfortunately has to be any due to UnspentOut in bitcore-lib not being exportable
     totalAmountAvailable: number;
+}
+
+export interface ITxStage1ScriptInput {
+    theirAddress: string,
+    ourReturnAddress: string,
+    zenottasAddress: string,
+    daysToLock: number,
+    startBlockHeight: number
 }
