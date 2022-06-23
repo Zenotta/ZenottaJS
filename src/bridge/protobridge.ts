@@ -1,5 +1,5 @@
-import { generateIntercomSetBody, generateIntercomGetBody } from "../utils/intercomUtils";
-import { IFreshTest } from "./interfaces";
+import { generateIntercomSetBody, generateIntercomGetBody } from '../utils/intercomUtils';
+import { IFreshTest } from './interfaces';
 import axios, { AxiosInstance } from 'axios';
 import uuidv4 from 'uuid';
 import nacl from 'tweetnacl';
@@ -10,13 +10,13 @@ import {
     INetworkResponse,
     IClientResponse,
     IGetMempoolKeyResponse,
-    IGetMempoolSignatureResponse
-} from "../interfaces";
-import { Result, ITradeProgress } from "./interfaces";
+    IGetMempoolSignatureResponse,
+} from '../interfaces';
+import { Result, ITradeProgress } from './interfaces';
 
 /**
  * Helix bridge for trading with another trader on another blockchain/network
- * 
+ *
  * @param {string} chain - The other blockchain/network to trade on with this bridge
  * @param {number} freshTestResponseTimeout - How long to wait for a fresh test response, in hours. Defaults to 12
  */
@@ -35,23 +35,20 @@ export class HelixBridge {
 
     /**
      * Utility function to sign a message
-     * 
+     *
      * @param secretKey - The secret key to sign the transaction with
      * @param message - The message to sign
-     * @returns 
+     * @returns
      */
     sign(secretKey: Uint8Array, message: string): string {
         return Buffer.from(
-            createSignature(
-                secretKey,
-                Uint8Array.from(Buffer.from(message, 'hex')),
-            ),
+            createSignature(secretKey, Uint8Array.from(Buffer.from(message, 'hex'))),
         ).toString('hex');
     }
 
     /**
      * Utility function to verify a signature
-     * 
+     *
      * @param signature - The signature to verify
      * @param message - The message to verify
      * @param publicKey - The public key to verify the signature with
@@ -61,16 +58,12 @@ export class HelixBridge {
         const messageBuffer = Uint8Array.from(Buffer.from(message, 'hex'));
         const pubKeyBuffer = Uint8Array.from(Buffer.from(publicKey, 'hex'));
 
-        return nacl.sign.detached.verify(
-            messageBuffer,
-            sigBuffer,
-            pubKeyBuffer,
-        );
+        return nacl.sign.detached.verify(messageBuffer, sigBuffer, pubKeyBuffer);
     }
 
     /**
      * Converts milliseconds to hours
-     * 
+     *
      * @param {number} ms - Milliseconds to convert
      */
     formatMillisecondsToHours(ms: number): number {
@@ -78,9 +71,9 @@ export class HelixBridge {
     }
 
     /**
-     * Marks an error or failure in the trade within this instance, and returns 
+     * Marks an error or failure in the trade within this instance, and returns
      * the error for further handling
-     * 
+     *
      * @param theirAddress - The address of the trade partner
      * @param reason - Reason for failure
      */
@@ -88,7 +81,7 @@ export class HelixBridge {
         this.progress[theirAddress] = Object.assign(this.progress[theirAddress], {
             status: null,
             lastEvent: new Date(),
-            reasonForFailure: reason
+            reasonForFailure: reason,
         });
 
         return new Error(reason);
@@ -96,20 +89,21 @@ export class HelixBridge {
 
     /**
      * Utility function to fetch the current data for our address in intercom
-     * 
+     *
      * @param intercomHost - Intercom host to send the requests to
      * @param ourAddress - Our address to fetch for
      * @param ourKeypair - Our keypair to sign for the response
-     * @returns 
+     * @returns
      */
-    async getIntercomData(intercomHost: string, ourAddress: string, ourKeypair: IKeypair): Result<any> {
+    async getIntercomData(
+        intercomHost: string,
+        ourAddress: string,
+        ourKeypair: IKeypair,
+    ): Result<any> {
         const getBody = generateIntercomGetBody(ourAddress, ourKeypair);
 
         return await axios
-            .post(
-                `${intercomHost}${IAPIRoute.IntercomGet}`,
-                getBody,
-            )
+            .post(`${intercomHost}${IAPIRoute.IntercomGet}`, getBody)
             .then((response) => {
                 return response.data;
             })
@@ -119,20 +113,24 @@ export class HelixBridge {
             });
     }
 
-    /** 
-     * Sends a test to the intercom for the receiver to sign. This serves as 
+    /**
+     * Sends a test to the intercom for the receiver to sign. This serves as
      * proof of public key freshness
-     * 
+     *
      * @param {string} intercomHost - Intercom host to send the request to
      * @param {string} theirAddress - The address of the receiver
      * @param {IKeypair} ourKeypair - Our keypair for sending the test
      */
-    public async sendFreshTest(intercomHost: string, theirAddress: string, ourKeypair: IKeypair): Result<IClientResponse> {
+    public async sendFreshTest(
+        intercomHost: string,
+        theirAddress: string,
+        ourKeypair: IKeypair,
+    ): Result<IClientResponse> {
         // Messages are randomly generated strings
         const valuePayload = {
             publicKey: theirAddress,
             message: uuidv4(),
-            signature: null
+            signature: null,
         };
 
         const sendBody = generateIntercomSetBody<IFreshTest>(
@@ -167,16 +165,18 @@ export class HelixBridge {
     }
 
     /**
-     * Gets a third party public key from the Zenotta mempool. Sets the mempool key 
+     * Gets a third party public key from the Zenotta mempool. Sets the mempool key
      * internally as well.
-     * 
+     *
      * @param {AxiosInstance} axiosClient - Client connected to the mempool
      * @param {boolean} force - Force a request for a new key, rather than using an existing one. Defaults to false
      */
     public async getMempoolKey(axiosClient: AxiosInstance, force = false): Result<IClientResponse> {
         if (!this.mempoolKey || force) {
             return await axiosClient
-                .post<INetworkResponse>(IAPIRoute.GetMempoolKey, { network: this.chain.toLowerCase() })
+                .post<INetworkResponse>(IAPIRoute.GetMempoolKey, {
+                    network: this.chain.toLowerCase(),
+                })
                 .then((response) => {
                     const responseData = response.data as INetworkResponse;
 
@@ -206,28 +206,37 @@ export class HelixBridge {
             reason: 'Existing mempool key retrieved',
             content: {
                 publicKey: this.mempoolKey,
-            }
+            },
         } as IClientResponse;
     }
 
     /**
      * Signs the fresh test and returns the signature to the sender
-     * 
+     *
      * @param {string} intercomHost - Intercom host to send the requests to
      * @param {string} ourAddress - Our address to fetch for
      * @param {IKeypair} ourKeypair - Our keypair to sign for data
      * @param {string} theirAddress - Their address to send the data back to
      */
-    public async signFreshTest(intercomHost: string, ourKeypair: IKeypair, theirAddress: string): Result<IClientResponse> {
+    public async signFreshTest(
+        intercomHost: string,
+        ourKeypair: IKeypair,
+        theirAddress: string,
+    ): Result<IClientResponse> {
         const ourAddress = this.progress[theirAddress].ourAddress;
 
         if (Uint8Array.from(Buffer.from(ourAddress, 'hex')) != ourKeypair.publicKey) {
-            return this.markedErrorInProgress(theirAddress, 'Our address does not match our public key');
+            return this.markedErrorInProgress(
+                theirAddress,
+                'Our address does not match our public key',
+            );
         }
 
         // 1. Get the test from the intercom
         const intercomData = await this.getIntercomData(intercomHost, ourAddress, ourKeypair);
-        if (!intercomData[theirAddress]) { return new Error('Data not found for trade partner!') }
+        if (!intercomData[theirAddress]) {
+            return new Error('Data not found for trade partner!');
+        }
         const freshTest = intercomData[theirAddress] as IFreshTest;
 
         // 2. Sign the fresh test
@@ -239,7 +248,7 @@ export class HelixBridge {
             theirAddress,
             ourAddress,
             ourKeypair,
-            freshTest
+            freshTest,
         );
 
         return await axios
@@ -248,7 +257,7 @@ export class HelixBridge {
                 // 4. Update the progress for this trade partner to 1
                 this.progress[theirAddress] = Object.assign(this.progress[theirAddress], {
                     status: 1,
-                    lastEvent: new Date()
+                    lastEvent: new Date(),
                 });
 
                 // Fresh test has been sent
@@ -259,23 +268,31 @@ export class HelixBridge {
                 } as IClientResponse;
             })
             .catch(async (error) => {
-                if (error instanceof Error) return this.markedErrorInProgress(theirAddress, error.message);
+                if (error instanceof Error)
+                    return this.markedErrorInProgress(theirAddress, error.message);
                 else return this.markedErrorInProgress(theirAddress, `${error}`);
             });
     }
 
     /**
      * Gets the pending fresh test response
-     * 
+     *
      * @param {string} intercomHost - Intercom host to send the requests to
      * @param {string} ourAddress - Our address to fetch for
      * @param {IKeypair} ourKeypair - Our keypair to sign for the response
      * @param {string} theirAddress - Their address to get the signature for
      */
-    public async getFreshTestResponse(intercomHost: string, ourAddress: string, ourKeypair: IKeypair, theirAddress: string): Result<IClientResponse> {
+    public async getFreshTestResponse(
+        intercomHost: string,
+        ourAddress: string,
+        ourKeypair: IKeypair,
+        theirAddress: string,
+    ): Result<IClientResponse> {
         // 1. Get the fresh test from the intercom
         const intercomData = await this.getIntercomData(intercomHost, ourAddress, ourKeypair);
-        if (!intercomData[theirAddress]) { return new Error('Data not found for trade partner!') }
+        if (!intercomData[theirAddress]) {
+            return new Error('Data not found for trade partner!');
+        }
         const freshTest = intercomData[theirAddress] as IFreshTest;
 
         // 2. Check that the time of receipt is not too old compared to the last time we checked
@@ -292,7 +309,7 @@ export class HelixBridge {
                 // 4. Update the progress for this trade partner to 2
                 this.progress[theirAddress] = Object.assign(this.progress[theirAddress], {
                     status: 2,
-                    lastEvent: new Date()
+                    lastEvent: new Date(),
                 });
 
                 return {
@@ -310,12 +327,16 @@ export class HelixBridge {
 
     /**
      * Gets the mempool signature for a given message and public key
-     * 
+     *
      * @param {AxiosInstance} axiosClient - Axios client to use for the request
      * @param {string} message - The message to sign
      * @param {string} publicKey - The public key to sign with
      */
-    public async getMempoolSignature(axiosClient: AxiosInstance, message: string, publicKey: string): Result<IClientResponse> {
+    public async getMempoolSignature(
+        axiosClient: AxiosInstance,
+        message: string,
+        publicKey: string,
+    ): Result<IClientResponse> {
         const sendBody = {
             message,
             publicKey,
@@ -353,23 +374,6 @@ export class HelixBridge {
     }
 
     /**
-     * Sends the other party's transaction to the chain network, along with Zenotta's public key in the multisig. 
-     * Also sends this transaction to the intercom so they can verify
-     */
-    public async sendTxStage1(_axiosClient: AxiosInstance): Result<IClientResponse> {
-        // 1. Construct the other party's transaction with their's and Zenotta's public keys
-        // 2. Send the transaction to the chain network
-        // 3. Send the transaction to the intercom
-        // 4. Update the progress for this trade partner to 3
-        
-        return {
-            status: 'error',
-            reason: 'Not implemented. Please use a network specific bridge (eg. HelixBridgeBTC)',
-            content: {},
-        };
-    }
-
-    /**
      * Checks the chain network for the first transaction stage's status
      */
     public async checkTxStage1(): Result<IClientResponse> {
@@ -386,7 +390,7 @@ export class HelixBridge {
     }
 
     /**
-     * Sends the other party's second transaction stage to the intercom. This is a partial, 
+     * Sends the other party's second transaction stage to the intercom. This is a partial,
      * without the Zenotta mempool signature
      */
     public async sendTxStage2Partial(): Result<IClientResponse> {

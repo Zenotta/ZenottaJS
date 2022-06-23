@@ -84,7 +84,7 @@ export type IFetchPendingDDEResponse = {
 };
 
 export type IGetMempoolKeyResponse = {
-    public_key: string
+    public_key: string;
 };
 
 export type IGetMempoolSignatureResponse = {

@@ -11,12 +11,10 @@ import {
     IPendingRbTxDetails,
     IDebugDataResponse,
     IGetMempoolKeyResponse,
-    IGetMempoolSignatureResponse
+    IGetMempoolSignatureResponse,
 } from '.';
 
-import {
-    IFetchBtcUtxoResponse
-} from '../bridge/interfaces';
+import { IFetchBtcUtxoResponse } from '../bridge/interfaces';
 
 // Config needed for initialization
 export type IClientConfig = {
