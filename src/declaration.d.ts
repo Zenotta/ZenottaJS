@@ -214,6 +214,8 @@ declare module 'bitcore-lib' {
         function fromAddress(address: string | Address): Script;
 
         function empty(): Script;
+
+        function Interpreter(): Script.Interpreter;
     }
 
     export class Script {

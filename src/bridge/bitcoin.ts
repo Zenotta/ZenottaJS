@@ -1,6 +1,11 @@
 import { HelixBridge } from './protobridge';
 import axios, { AxiosInstance } from 'axios';
-import { Result, IFetchBtcUtxoResponse, ITxStage1ScriptInput } from './interfaces';
+import {
+    Result,
+    IFetchBtcUtxoResponse,
+    ITxStage1ScriptInput,
+    IBtcExpectations,
+} from './interfaces';
 import { IClientResponse, IKeypair, IAPIRoute } from '../interfaces';
 import { BTC_BLOCKTIME_SECS, INPUT_SIZE, OUTPUT_SIZE } from './constants';
 import { PrivateKey, Address, PublicKey, Transaction, Script, crypto } from 'bitcore-lib';
@@ -65,6 +70,35 @@ export class HelixBridgeBTC extends HelixBridge {
             return null;
         }
         return satoshiFee;
+    }
+
+    /**
+     * Predicate to check whether a transaction meets the trade expectations
+     *
+     * @param transaction - The transaction to check
+     * @param expectations - The expectations for the trade
+     */
+    expectationsAreMetBtcTx(transaction: Transaction, expectations: IBtcExpectations): boolean {
+        const outputs = transaction.outputs;
+
+        // Check filters
+        const amount = outputs.reduce((acc, current) => acc + current.satoshis, 0);
+        const ourAddressFilter = outputs.filter(
+            (o) => o.script.toString().indexOf(expectations.ourAddress) != -1,
+        );
+        const zenottasAddressFilter = outputs.filter(
+            (o) => o.script.toString().indexOf(expectations.zenottasAddress) != -1,
+        );
+
+        if (
+            amount != expectations.amount ||
+            ourAddressFilter.length != 1 ||
+            zenottasAddressFilter.length != 1
+        ) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -244,7 +278,7 @@ export class HelixBridgeBTC extends HelixBridge {
     }
 
     /* -------------------------------------------------------------------------- */
-    /*                       Inherited Methods from ProtoBridge                   */
+    /*                       Shared Methods from ProtoBridge                      */
     /* -------------------------------------------------------------------------- */
 
     /**
@@ -252,8 +286,8 @@ export class HelixBridgeBTC extends HelixBridge {
      *
      * @param {string} intercomHost - The hostname of the intercom server
      * @param {string} theirAddress - The address to send the funds to
-     * @param
-     * @param transaction - Transaction to send
+     * @param {IKeypair} ourKeypair - Our keypair to use for the transaction
+     * @param {Transaction} transaction - Transaction to send
      */
     public async sendTxStage1(
         intercomHost: string,
@@ -288,5 +322,76 @@ export class HelixBridgeBTC extends HelixBridge {
                 if (error instanceof Error) return new Error(error.message);
                 else return new Error(`${error}`);
             });
+    }
+
+    /**
+     * Gets TxA from the intercom server and ensures it matches our
+     * expectations for this trade
+     *
+     * @param intercomHost - The hostname of the intercom server
+     * @param ourKeypair - Our keypair to unlock the intercom server response
+     * @param theirAddress - Address of the counter party
+     * @param expectations - The expectations for this trade
+     */
+    public async getTxStage1(
+        intercomHost: string,
+        ourKeypair: IKeypair,
+        theirAddress: string,
+        expectations: IBtcExpectations,
+    ): Result<IClientResponse> {
+        const intercomData = await this.getIntercomData(
+            intercomHost,
+            ourKeypair.address,
+            ourKeypair,
+        );
+        if (intercomData instanceof Error) {
+            return intercomData;
+        }
+        if (!intercomData[theirAddress]) {
+            return this.markedErrorInProgress(theirAddress, `No data for counter party found`);
+        }
+
+        // Grab transaction
+        const transaction = intercomData[theirAddress] as Transaction;
+        if (!transaction) {
+            return this.markedErrorInProgress(
+                theirAddress,
+                `No first transaction stage (TxA) found for ${theirAddress}`,
+            );
+        }
+
+        // Validate
+        const inputScript = transaction.inputs[0].script;
+        const outputScript = transaction.outputs[0].script;
+        if (!inputScript || !outputScript) {
+            return this.markedErrorInProgress(
+                theirAddress,
+                `No input or output script found for ${theirAddress}`,
+            );
+        }
+        if (!Script.Interpreter().verify(inputScript, outputScript)) {
+            return this.markedErrorInProgress(theirAddress, `Invalid transaction TxA`);
+        }
+
+        // Check the expectations
+        if (!this.expectationsAreMetBtcTx(transaction, expectations)) {
+            return this.markedErrorInProgress(
+                theirAddress,
+                `Expectations not met for ${theirAddress}`,
+            );
+        }
+
+        this.progress[theirAddress] = Object.assign(this.progress[theirAddress], {
+            status: 4,
+            lastEvent: new Date(),
+        });
+
+        return {
+            status: 'success',
+            reason: 'Received first transaction stage',
+            content: {
+                transaction,
+            },
+        } as IClientResponse;
     }
 }

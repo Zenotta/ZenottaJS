@@ -7,9 +7,10 @@
  * - 1: Fresh test signed, waiting for partner to sign
  * - 2: Both sides have signed, the trade can continue
  * - 3: First transaction stage, with multisig tx
- * - 4: Second transaction stage, as partial
- * - 5: Third transaction stage, DDE to Zenotta Mempool
- * - 6: Trade completed
+ * - 4: First transaction stage checked and approved
+ * - 5: Second transaction stage, as partial
+ * - 6: Third transaction stage, DDE to Zenotta Mempool
+ * - 7: Trade completed
  * - null: Failure to complete (more reason given in `reasonForFailure` attribute)
  */
 export type ITradeProgress = {
@@ -34,6 +35,15 @@ export type IFreshTest = {
 };
 
 /* -------------------------------------------------------------------------- */
+/*                       Interfaces for Zenotta                               */
+/* -------------------------------------------------------------------------- */
+
+export type IZenExpectations = {
+    ourAddress: string;
+    amount: number;
+};
+
+/* -------------------------------------------------------------------------- */
 /*                       Interfaces for BitCoin                               */
 /* -------------------------------------------------------------------------- */
 
@@ -48,4 +58,10 @@ export type ITxStage1ScriptInput = {
     zenottasAddress: string;
     daysToLock: number;
     startBlockHeight: number;
+};
+
+export type IBtcExpectations = {
+    ourAddress: string;
+    zenottasAddress: string;
+    amount: number; // in satoshis
 };

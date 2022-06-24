@@ -374,22 +374,6 @@ export class HelixBridge {
     }
 
     /**
-     * Checks the chain network for the first transaction stage's status
-     */
-    public async checkTxStage1(): Result<IClientResponse> {
-        // 1. Get the transaction from the intercom
-        // 2. Check that the transaction is in the chain network
-        // 3. Ensure the 2 transactions match
-        // 4. Update the progress for this trade partner to 3
-
-        return {
-            status: 'error',
-            reason: 'Not implemented. Please use a network specific bridge (eg. HelixBridgeBTC)',
-            content: {},
-        };
-    }
-
-    /**
      * Sends the other party's second transaction stage to the intercom. This is a partial,
      * without the Zenotta mempool signature
      */
