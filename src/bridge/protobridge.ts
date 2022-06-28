@@ -15,7 +15,9 @@ import {
 import { Result, ITradeProgress } from './interfaces';
 
 /**
- * Helix bridge for trading with another trader on another blockchain/network
+ * Helix bridge for trading with another trader on another blockchain/network. This is a
+ * semi-abstract class that must be extended to create a specific bridge and is not intended
+ * to be used directly
  *
  * @param {string} chain - The other blockchain/network to trade on with this bridge
  * @param {number} freshTestResponseTimeout - How long to wait for a fresh test response, in hours. Defaults to 12
@@ -26,7 +28,7 @@ export class HelixBridge {
     freshTestResponseTimeout: number; // in hours
     progress: { [address: string]: ITradeProgress };
 
-    constructor(chain: 'BTC', freshTestResponseTimeout = 12) {
+    constructor(chain: string, freshTestResponseTimeout = 12) {
         this.chain = chain;
         this.progress = {};
         this.mempoolKey = null;
@@ -377,7 +379,7 @@ export class HelixBridge {
      * Sends the other party's second transaction stage to the intercom. This is a partial,
      * without the Zenotta mempool signature
      */
-    public async sendTxStage2Partial(): Result<IClientResponse> {
+    public async sendTxStage2Partial(intercomHost: string, theirAddress: string, ourKeypair: IKeypair): Result<IClientResponse> {
         // 1. Construct the other party's on-spend transaction, without the mempool signature
         // 2. Send the transaction to the other party's intercom
         // 3. Update the progress for this trade partner to 3
@@ -385,7 +387,11 @@ export class HelixBridge {
         return {
             status: 'error',
             reason: 'Not implemented. Please use a network specific bridge (eg. HelixBridgeBTC)',
-            content: {},
+            content: {
+                intercomHost,
+                theirAddress,
+                ourAddress: ourKeypair.address
+            },
         };
     }
 

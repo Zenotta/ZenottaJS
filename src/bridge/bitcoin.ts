@@ -7,7 +7,7 @@ import {
     IBtcExpectations,
 } from './interfaces';
 import { IClientResponse, IKeypair, IAPIRoute } from '../interfaces';
-import { BTC_BLOCKTIME_SECS, INPUT_SIZE, OUTPUT_SIZE } from './constants';
+import { BTC_BLOCKTIME_SECS, INPUT_SIZE, OUTPUT_SIZE, SATOSHI_PER_BYTE_PAYMENT } from './constants';
 import { PrivateKey, Address, PublicKey, Transaction, Script, crypto } from 'bitcore-lib';
 import { generateIntercomSetBody } from '../utils/intercomUtils';
 
@@ -216,7 +216,7 @@ export class HelixBridgeBTC extends HelixBridge {
         // Handle inputs & fee
         const inputs = utxoFetchResult.inputs;
         const fee = this.calculateFee(
-            20,
+            SATOSHI_PER_BYTE_PAYMENT,
             inputs.length,
             amount,
             utxoFetchResult.totalAmountAvailable,
@@ -393,5 +393,39 @@ export class HelixBridgeBTC extends HelixBridge {
                 transaction,
             },
         } as IClientResponse;
+    }
+
+    public async sendTxStage2Partial(intercomHost: string, theirAddress: string, ourKeypair: IKeypair): Result<IClientResponse> {
+        if (this.txStage2) {
+            const sendBody = generateIntercomSetBody<Transaction>(
+                theirAddress,
+                ourKeypair.address,
+                ourKeypair,
+                this.txStage2,
+            );
+    
+            return await axios
+                .post(`${intercomHost}${IAPIRoute.IntercomSet}`, sendBody)
+                .then(() => {
+                    // Update the progress on our trade with this person
+                    this.progress[theirAddress] = Object.assign(this.progress[theirAddress], {
+                        status: 5,
+                        lastEvent: new Date(),
+                    });
+    
+                    // Fresh test has been sent
+                    return {
+                        status: 'success',
+                        reason: 'Sent first transaction stage',
+                        content: {},
+                    } as IClientResponse;
+                })
+                .catch(async (error) => {
+                    if (error instanceof Error) return new Error(error.message);
+                    else return new Error(`${error}`);
+                });
+        }
+
+        return this.markedErrorInProgress(theirAddress, `No second transaction stage (TxB) found`);
     }
 }
