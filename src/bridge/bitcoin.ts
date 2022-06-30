@@ -128,8 +128,7 @@ export class HelixBridgeBTC extends HelixBridge {
     }
 
     /**
-     * Constructs the partial second transaction stage (TxB') for the trade. It
-     * also assigns the partial to this.txStage2
+     * Constructs the partial second transaction stage (TxB') for the trade
      *
      * NOTE: This stage does not include Zenotta's signature, which must be added
      * after the third transaction stage is completed
@@ -156,8 +155,6 @@ export class HelixBridgeBTC extends HelixBridge {
             return transaction;
         }
         transaction.applySignature(crypto.Signature.fromString(ourSig));
-
-        this.txStage2 = transaction;
         return transaction;
     }
 
@@ -395,37 +392,84 @@ export class HelixBridgeBTC extends HelixBridge {
         } as IClientResponse;
     }
 
-    public async sendTxStage2Partial(intercomHost: string, theirAddress: string, ourKeypair: IKeypair): Result<IClientResponse> {
-        if (this.txStage2) {
-            const sendBody = generateIntercomSetBody<Transaction>(
-                theirAddress,
-                ourKeypair.address,
-                ourKeypair,
-                this.txStage2,
-            );
-    
-            return await axios
-                .post(`${intercomHost}${IAPIRoute.IntercomSet}`, sendBody)
-                .then(() => {
-                    // Update the progress on our trade with this person
-                    this.progress[theirAddress] = Object.assign(this.progress[theirAddress], {
-                        status: 5,
-                        lastEvent: new Date(),
-                    });
-    
-                    // Fresh test has been sent
-                    return {
-                        status: 'success',
-                        reason: 'Sent first transaction stage',
-                        content: {},
-                    } as IClientResponse;
-                })
-                .catch(async (error) => {
-                    if (error instanceof Error) return new Error(error.message);
-                    else return new Error(`${error}`);
+    public async sendTxStage2Partial(
+        intercomHost: string,
+        theirAddress: string,
+        ourKeypair: IKeypair,
+        txStage2Partial: Transaction,
+    ): Result<IClientResponse> {
+        const sendBody = generateIntercomSetBody<Transaction>(
+            theirAddress,
+            ourKeypair.address,
+            ourKeypair,
+            txStage2Partial,
+        );
+
+        return await axios
+            .post(`${intercomHost}${IAPIRoute.IntercomSet}`, sendBody)
+            .then(() => {
+                // Update the progress on our trade with this person
+                this.progress[theirAddress] = Object.assign(this.progress[theirAddress], {
+                    status: 5,
+                    lastEvent: new Date(),
                 });
+
+                // Fresh test has been sent
+                return {
+                    status: 'success',
+                    reason: 'Sent first transaction stage',
+                    content: {},
+                } as IClientResponse;
+            })
+            .catch(async (error) => {
+                if (error instanceof Error) return new Error(error.message);
+                else return new Error(`${error}`);
+            });
+    }
+
+    public async getTxStage2Partial(
+        intercomHost: string,
+        theirAddress: string,
+        ourKeypair: IKeypair,
+        ourSig: string,
+    ): Result<IClientResponse> {
+        const intercomData = await this.getIntercomData(
+            intercomHost,
+            ourKeypair.address,
+            ourKeypair,
+        );
+        if (intercomData instanceof Error) {
+            return intercomData;
+        }
+        if (!intercomData[theirAddress]) {
+            return this.markedErrorInProgress(theirAddress, `No data for counter party found`);
         }
 
-        return this.markedErrorInProgress(theirAddress, `No second transaction stage (TxB) found`);
+        // Grab transaction
+        const transaction = intercomData[theirAddress] as Transaction;
+        if (!transaction) {
+            return this.markedErrorInProgress(
+                theirAddress,
+                `No first transaction stage (TxA) found for ${theirAddress}`,
+            );
+        }
+
+        // Verify
+        const inputScript = transaction.inputs[0].script;
+        if (inputScript.toString().indexOf(ourSig) == -1) {
+            return this.markedErrorInProgress(theirAddress, `Invalid transaction TxB partial`);
+        }
+        
+        this.progress[theirAddress] = Object.assign(this.progress[theirAddress], {
+            status: 6,
+            lastEvent: new Date(),
+        });
+
+        this.txStage2 = transaction;
+        return {
+            status: 'success',
+            reason: 'Received second transaction stage',
+            content: {}
+        } as IClientResponse;
     }
 }

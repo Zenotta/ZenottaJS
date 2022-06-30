@@ -376,41 +376,6 @@ export class HelixBridge {
     }
 
     /**
-     * Sends the other party's second transaction stage to the intercom. This is a partial,
-     * without the Zenotta mempool signature
-     */
-    public async sendTxStage2Partial(intercomHost: string, theirAddress: string, ourKeypair: IKeypair): Result<IClientResponse> {
-        // 1. Construct the other party's on-spend transaction, without the mempool signature
-        // 2. Send the transaction to the other party's intercom
-        // 3. Update the progress for this trade partner to 3
-
-        return {
-            status: 'error',
-            reason: 'Not implemented. Please use a network specific bridge (eg. HelixBridgeBTC)',
-            content: {
-                intercomHost,
-                theirAddress,
-                ourAddress: ourKeypair.address
-            },
-        };
-    }
-
-    /**
-     * Get our second transaction stage from the intercom
-     */
-    public async getTxStage2Partial(): Result<IClientResponse> {
-        // 1. Get the second transaction from the intercom
-        // 2. Check it's valid
-        // 3. Update the progress for this trade partner to 3
-
-        return {
-            status: 'error',
-            reason: 'Not implemented. Please use a network specific bridge (eg. HelixBridgeBTC)',
-            content: {},
-        };
-    }
-
-    /**
      * Sends our third transaction stage as a DDE to the intercom
      */
     public async sendTxStage3(): Result<IClientResponse> {

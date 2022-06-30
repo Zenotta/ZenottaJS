@@ -10,7 +10,8 @@
  * - 4: First transaction stage checked and approved
  * - 5: Second transaction stage, as partial
  * - 6: Third transaction stage, DDE to Zenotta Mempool
- * - 7: Trade completed
+ * - 7: DDE transaction complete, fetch Zenotta signature
+ * - 8: Trade completed
  * - null: Failure to complete (more reason given in `reasonForFailure` attribute)
  */
 export type ITradeProgress = {
