@@ -11,7 +11,7 @@ import {
     IPendingRbTxDetails,
     IDebugDataResponse,
     IGetMempoolKeyResponse,
-    IGetMempoolSignatureResponse
+    IGetMempoolSignatureResponse,
 } from '.';
 
 // Config needed for initialization

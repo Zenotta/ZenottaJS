@@ -41,7 +41,7 @@ export enum IErrorInternal {
     KeyValuePairNotSingle = 'Key-value pair does not only have one element',
     UnableToFindNonEmptyAddresses = 'Unable to find addresses that contain assets',
     UnknownError = 'Unknown Error',
-    KeyMgmtNotInitialized = 'Key management hasn\'t been initialized',
+    KeyMgmtNotInitialized = "Key management hasn't been initialized",
 }
 
 // Custom `Result` wrapper with string error

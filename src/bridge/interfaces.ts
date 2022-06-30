@@ -1,5 +1,5 @@
-export interface IFreshTest {
-    publicKey: string,
-    message: string,
-    signature: string | null
-}
+export type IFreshTest = {
+    publicKey: string;
+    message: string;
+    signature: string | null;
+};
