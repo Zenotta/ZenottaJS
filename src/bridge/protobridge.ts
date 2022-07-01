@@ -10,7 +10,6 @@ import {
     INetworkResponse,
     IClientResponse,
     IGetMempoolKeyResponse,
-    IGetMempoolSignatureResponse,
 } from '../interfaces';
 import { Result, ITradeProgress } from './interfaces';
 
@@ -90,6 +89,29 @@ export class HelixBridge {
     }
 
     /**
+     * Retrieves the signature from the Mempool for completing the TxB partial
+     * 
+     * @param intercomHost - Intercom host to fetch the signature data from
+     * @param zenottasAddress - The address of Zenotta
+     * @param ourAddress - Our address to fetch for
+     * @param ourKeypair - Our keypair to sign for
+     * @returns 
+     */
+    public async getMempoolSignature(intercomHost: string, zenottasAddress: string, ourAddress: string, ourKeypair: IKeypair): Result<IClientResponse> {
+        const intercomData = await this.getIntercomData(intercomHost, ourAddress, ourKeypair);
+
+        if (intercomData instanceof Error) {
+            return intercomData;
+        }
+        if (!intercomData[zenottasAddress]) {
+            return this.markedErrorInProgress(zenottasAddress, `No signature found from Zenotta third transaction stage`);
+        }
+
+        return intercomData[zenottasAddress];
+    }
+
+
+    /**
      * Utility function to fetch the current data for our address in intercom
      *
      * @param intercomHost - Intercom host to send the requests to
@@ -101,7 +123,7 @@ export class HelixBridge {
         intercomHost: string,
         ourAddress: string,
         ourKeypair: IKeypair,
-    ): Result<any> {
+    ): Result<{ [key: string]: any }> {
         const getBody = generateIntercomGetBody(ourAddress, ourKeypair);
 
         return await axios
@@ -236,6 +258,8 @@ export class HelixBridge {
 
         // 1. Get the test from the intercom
         const intercomData = await this.getIntercomData(intercomHost, ourAddress, ourKeypair);
+        if (intercomData instanceof Error) { return intercomData }
+
         if (!intercomData[theirAddress]) {
             return new Error('Data not found for trade partner!');
         }
@@ -292,6 +316,7 @@ export class HelixBridge {
     ): Result<IClientResponse> {
         // 1. Get the fresh test from the intercom
         const intercomData = await this.getIntercomData(intercomHost, ourAddress, ourKeypair);
+        if (intercomData instanceof Error) { return intercomData }
         if (!intercomData[theirAddress]) {
             return new Error('Data not found for trade partner!');
         }
@@ -325,54 +350,6 @@ export class HelixBridge {
         }
 
         return this.markedErrorInProgress(theirAddress, 'Fresh test signature not found');
-    }
-
-    /**
-     * Gets the mempool signature for a given message and public key
-     *
-     * @param {AxiosInstance} axiosClient - Axios client to use for the request
-     * @param {string} message - The message to sign
-     * @param {string} publicKey - The public key to sign with
-     */
-    public async getMempoolSignature(
-        axiosClient: AxiosInstance,
-        message: string,
-        publicKey: string,
-    ): Result<IClientResponse> {
-        const sendBody = {
-            message,
-            publicKey,
-            network: this.chain.toLowerCase(),
-        };
-
-        return await axiosClient
-            .post<INetworkResponse>(IAPIRoute.GetMempoolSignature, sendBody)
-            .then((response) => {
-                const responseData = response.data as INetworkResponse;
-
-                if (responseData.content) {
-                    const content = responseData.content as IGetMempoolSignatureResponse;
-
-                    if (this.mempoolKey != content.public_key) {
-                        return new Error('Mempool public key mismatch with signature');
-                    }
-
-                    return {
-                        status: 'success',
-                        reason: 'Mempool signature received',
-                        content: {
-                            publicKey: content.public_key,
-                            signature: content.signature,
-                        },
-                    } as IClientResponse;
-                }
-
-                return new Error(`${responseData.reason}`);
-            })
-            .catch(async (error) => {
-                if (error instanceof Error) return new Error(error.message);
-                else return new Error(`${error}`);
-            });
     }
 
     /**
