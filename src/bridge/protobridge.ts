@@ -11,7 +11,7 @@ import {
     IClientResponse,
     IGetMempoolKeyResponse,
 } from '../interfaces';
-import { Result, ITradeProgress } from './interfaces';
+import { IPromiseResult, ITradeProgress } from './interfaces';
 
 /**
  * Helix bridge for trading with another trader on another blockchain/network. This is a
@@ -32,6 +32,17 @@ export class HelixBridge {
         this.progress = {};
         this.mempoolKey = null;
         this.freshTestResponseTimeout = freshTestResponseTimeout;
+    }
+
+    /**
+     * Clears out the progress tracker of completed trades
+     */
+    cleanProgress() {
+        for (let address of Object.keys(this.progress)) {
+            if (this.progress[address].status == 8) {
+                delete this.progress[address];
+            }
+        }
     }
 
     /**
@@ -97,7 +108,7 @@ export class HelixBridge {
      * @param ourKeypair - Our keypair to sign for
      * @returns 
      */
-    public async getMempoolSignature(intercomHost: string, zenottasAddress: string, ourAddress: string, ourKeypair: IKeypair): Result<IClientResponse> {
+    public async getMempoolSignature(intercomHost: string, zenottasAddress: string, ourAddress: string, ourKeypair: IKeypair): IPromiseResult<IClientResponse> {
         const intercomData = await this.getIntercomData(intercomHost, ourAddress, ourKeypair);
 
         if (intercomData instanceof Error) {
@@ -123,7 +134,7 @@ export class HelixBridge {
         intercomHost: string,
         ourAddress: string,
         ourKeypair: IKeypair,
-    ): Result<{ [key: string]: any }> {
+    ): IPromiseResult<{ [key: string]: any }> {
         const getBody = generateIntercomGetBody(ourAddress, ourKeypair);
 
         return await axios
@@ -149,7 +160,7 @@ export class HelixBridge {
         intercomHost: string,
         theirAddress: string,
         ourKeypair: IKeypair,
-    ): Result<IClientResponse> {
+    ): IPromiseResult<IClientResponse> {
         // Messages are randomly generated strings
         const valuePayload = {
             publicKey: theirAddress,
@@ -195,7 +206,7 @@ export class HelixBridge {
      * @param {AxiosInstance} axiosClient - Client connected to the mempool
      * @param {boolean} force - Force a request for a new key, rather than using an existing one. Defaults to false
      */
-    public async getMempoolKey(axiosClient: AxiosInstance, force = false): Result<IClientResponse> {
+    public async getMempoolKey(axiosClient: AxiosInstance, force = false): IPromiseResult<IClientResponse> {
         if (!this.mempoolKey || force) {
             return await axiosClient
                 .post<INetworkResponse>(IAPIRoute.GetMempoolKey, {
@@ -246,7 +257,7 @@ export class HelixBridge {
         intercomHost: string,
         ourKeypair: IKeypair,
         theirAddress: string,
-    ): Result<IClientResponse> {
+    ): IPromiseResult<IClientResponse> {
         const ourAddress = this.progress[theirAddress].ourAddress;
 
         if (Uint8Array.from(Buffer.from(ourAddress, 'hex')) != ourKeypair.publicKey) {
@@ -313,7 +324,7 @@ export class HelixBridge {
         ourAddress: string,
         ourKeypair: IKeypair,
         theirAddress: string,
-    ): Result<IClientResponse> {
+    ): IPromiseResult<IClientResponse> {
         // 1. Get the fresh test from the intercom
         const intercomData = await this.getIntercomData(intercomHost, ourAddress, ourKeypair);
         if (intercomData instanceof Error) { return intercomData }
@@ -353,38 +364,9 @@ export class HelixBridge {
     }
 
     /**
-     * Sends our third transaction stage as a DDE to the intercom
-     */
-    public async sendTxStage3(): Result<IClientResponse> {
-        // 1. Construct the third transaction
-        // 2. Undergo RBP process
-        // 3. Update the progress for this trade partner to 4
-
-        return {
-            status: 'error',
-            reason: 'Not implemented. Please use a network specific bridge (eg. HelixBridgeBTC)',
-            content: {},
-        };
-    }
-
-    /**
-     * Submits the final second transaction stage to the chain network
-     */
-    public async submitTxStage2(): Result<IClientResponse> {
-        // 1. Add the Zenotta signature to the second stage transaction
-        // 2. Submit the second stage transaction to the chain network
-
-        return {
-            status: 'error',
-            reason: 'Not implemented. Please use a network specific bridge (eg. HelixBridgeBTC)',
-            content: {},
-        };
-    }
-
-    /**
      * Fallback method for when the other party doesn't claim their second stage transaction
      */
-    public async submitTxStage4(): Result<IClientResponse> {
+    public async submitTxStage4(): IPromiseResult<IClientResponse> {
         return {
             status: 'error',
             reason: 'Not implemented. Please use a network specific bridge (eg. HelixBridgeBTC)',

@@ -24,7 +24,7 @@ export type ITradeProgress = {
 /**
  * Rust-like Result monad for handling errors
  */
-export type Result<T> = Promise<T | Error>;
+export type IPromiseResult<T> = Promise<T | Error>;
 
 /**
  * Test for public key freshness on intercom

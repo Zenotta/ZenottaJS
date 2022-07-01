@@ -1,7 +1,7 @@
 import { HelixBridge } from './protobridge';
 import axios, { AxiosInstance } from 'axios';
 import {
-    Result,
+    IPromiseResult,
     IFetchBtcUtxoResponse,
     ITxStage1ScriptInput,
     IBtcExpectations,
@@ -144,7 +144,7 @@ export class HelixBridgeBTC extends HelixBridge {
         ourSig: string,
         amount: number,
         ourPrivateKey: PrivateKey,
-    ): Result<Transaction> {
+    ): IPromiseResult<Transaction> {
         const transaction = await this.constructTransaction(
             axiosClient,
             ourPrivateKey,
@@ -171,7 +171,7 @@ export class HelixBridgeBTC extends HelixBridge {
         inputs: ITxStage1ScriptInput,
         amount: number,
         ourPrivateKey: PrivateKey,
-    ): Result<Transaction> {
+    ): IPromiseResult<Transaction> {
         const transaction = await this.constructTransaction(
             axiosClient,
             ourPrivateKey,
@@ -196,7 +196,7 @@ export class HelixBridgeBTC extends HelixBridge {
         ourPrivateKey: PrivateKey,
         theirAddress: string,
         amount: number,
-    ): Result<Transaction> {
+    ): IPromiseResult<Transaction> {
         const publicKey = PublicKey.fromPrivateKey(ourPrivateKey);
         const ourAddress = new Address(publicKey);
         const transaction = new Transaction();
@@ -242,7 +242,7 @@ export class HelixBridgeBTC extends HelixBridge {
     public async fetchInputsFromUtxo(
         axiosClient: AxiosInstance,
         address: string,
-    ): Result<IFetchBtcUtxoResponse> {
+    ): IPromiseResult<IFetchBtcUtxoResponse> {
         return await axiosClient
             .get(`${this.bitcoinEndpoint}/${this.netenv}/${address}`)
             .then((response: any) => {
@@ -291,7 +291,7 @@ export class HelixBridgeBTC extends HelixBridge {
         theirAddress: string,
         ourKeypair: IKeypair,
         transaction: Transaction,
-    ): Result<IClientResponse> {
+    ): IPromiseResult<IClientResponse> {
         const sendBody = generateIntercomSetBody<Transaction>(
             theirAddress,
             ourKeypair.address,
@@ -335,7 +335,7 @@ export class HelixBridgeBTC extends HelixBridge {
         ourKeypair: IKeypair,
         theirAddress: string,
         expectations: IBtcExpectations,
-    ): Result<IClientResponse> {
+    ): IPromiseResult<IClientResponse> {
         const intercomData = await this.getIntercomData(
             intercomHost,
             ourKeypair.address,
@@ -397,7 +397,7 @@ export class HelixBridgeBTC extends HelixBridge {
         theirAddress: string,
         ourKeypair: IKeypair,
         txStage2Partial: Transaction,
-    ): Result<IClientResponse> {
+    ): IPromiseResult<IClientResponse> {
         const sendBody = generateIntercomSetBody<Transaction>(
             theirAddress,
             ourKeypair.address,
@@ -432,7 +432,7 @@ export class HelixBridgeBTC extends HelixBridge {
         theirAddress: string,
         ourKeypair: IKeypair,
         ourSig: string,
-    ): Result<IClientResponse> {
+    ): IPromiseResult<IClientResponse> {
         const intercomData = await this.getIntercomData(
             intercomHost,
             ourKeypair.address,
@@ -459,7 +459,7 @@ export class HelixBridgeBTC extends HelixBridge {
         if (inputScript.toString().indexOf(ourSig) == -1) {
             return this.markedErrorInProgress(theirAddress, `Invalid transaction TxB partial`);
         }
-        
+
         this.progress[theirAddress] = Object.assign(this.progress[theirAddress], {
             status: 6,
             lastEvent: new Date(),
@@ -469,7 +469,38 @@ export class HelixBridgeBTC extends HelixBridge {
         return {
             status: 'success',
             reason: 'Received second transaction stage',
-            content: {}
+            content: {},
         } as IClientResponse;
+    }
+
+    public async submitTxStage2(
+        axiosClient: AxiosInstance,
+        theirAddress: string,
+        zenottasSig: string,
+    ): IPromiseResult<IClientResponse> {
+        if (!this.txStage2) {
+            return this.markedErrorInProgress(theirAddress, 'No stage 2 TxB found');
+        }
+
+        this.txStage2.applySignature(crypto.Signature.fromString(zenottasSig));
+        return await axiosClient
+            // TODO: Get the right endpoint
+            .get(`${this.bitcoinEndpoint}/${this.netenv}/${theirAddress}`)
+            .then((_response: any) => {
+                this.progress[theirAddress] = Object.assign(this.progress[theirAddress], {
+                    status: 8,
+                    lastEvent: new Date()
+                });
+
+                return {
+                    status: 'success',
+                    reason: 'Sent second transaction stage complete',
+                    content: {}
+                } as IClientResponse;
+            })
+            .catch(async (error) => {
+                if (error instanceof Error) return new Error(error.message);
+                else return new Error(`${error}`);
+            });
     }
 }
