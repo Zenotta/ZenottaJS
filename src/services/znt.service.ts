@@ -1,3 +1,4 @@
+import { ISuccessInternal } from '@interfaces/success.interfaces';
 import axios from 'axios';
 
 import {
@@ -94,7 +95,7 @@ export class ZenottaInstance {
         } else {
             return {
                 status: 'success',
-                reason: 'ZNP client initialized',
+                reason: ISuccessInternal.ClientInitialized,
                 content: {
                     initNewResponse: initIResult.value,
                 },
@@ -134,7 +135,7 @@ export class ZenottaInstance {
         } else {
             return {
                 status: 'success',
-                reason: 'ZNP client initialized',
+                reason: ISuccessInternal.ClientInitialized,
             } as IClientResponse;
         }
     }
@@ -170,7 +171,7 @@ export class ZenottaInstance {
         } else {
             return {
                 status: 'success',
-                reason: 'ZNP client initialized',
+                reason: ISuccessInternal.ClientInitialized,
                 content: {
                     initFromSeedResponse: initIResult.value,
                 },
@@ -278,10 +279,10 @@ export class ZenottaInstance {
                 IAPIRoute.GetUtxoAddressList,
             );
             return await axios
-                .get<INetworkResponse>(
-                    `${this.computeHost}${IAPIRoute.GetUtxoAddressList}`,
-                    headers,
-                )
+                .get<INetworkResponse>(`${this.computeHost}${IAPIRoute.GetUtxoAddressList}`, {
+                    ...headers,
+                    validateStatus: () => true,
+                })
                 .then((response) => {
                     return {
                         status: castAPIStatus(response.data.status),
@@ -325,7 +326,7 @@ export class ZenottaInstance {
                 .post<INetworkResponse>(
                     `${this.computeHost}${IAPIRoute.FetchBalance}`,
                     fetchBalanceBody,
-                    headers,
+                    { ...headers, validateStatus: () => true },
                 )
                 .then((response) => {
                     return {
@@ -367,7 +368,7 @@ export class ZenottaInstance {
                 .post<INetworkResponse>(
                     `${this.storageHost}${IAPIRoute.Transactions}`,
                     transactionHashes,
-                    headers,
+                    { ...headers, validateStatus: () => true },
                 )
                 .then((response) => {
                     return {
@@ -414,7 +415,7 @@ export class ZenottaInstance {
                 .post<INetworkResponse>(
                     `${this.computeHost}${IAPIRoute.FetchPending}`,
                     fetchPendingBody,
-                    headers,
+                    { ...headers, validateStatus: () => true },
                 )
                 .then((response) => {
                     return {
@@ -474,7 +475,7 @@ export class ZenottaInstance {
                 .post<INetworkResponse>(
                     `${this.computeHost}${IAPIRoute.CreateReceiptAsset}`,
                     createReceiptBody,
-                    headers,
+                    { ...headers, validateStatus: () => true },
                 )
                 .then((response) => {
                     return {
@@ -512,10 +513,10 @@ export class ZenottaInstance {
                 IAPIRoute.GetNotaryBurnAddress,
             );
             return await axios
-                .get<INetworkResponse>(
-                    `${this.notaryHost}${IAPIRoute.GetNotaryBurnAddress}`,
-                    headers,
-                )
+                .get<INetworkResponse>(`${this.notaryHost}${IAPIRoute.GetNotaryBurnAddress}`, {
+                    ...headers,
+                    validateStatus: () => true,
+                })
                 .then((response) => {
                     return {
                         status: castAPIStatus(response.data.status),
@@ -562,11 +563,10 @@ export class ZenottaInstance {
                 signatures,
             };
             return await axios
-                .post<INetworkResponse>(
-                    `${this.notaryHost}${IAPIRoute.GetNotarySignature}`,
-                    body,
-                    headers,
-                )
+                .post<INetworkResponse>(`${this.notaryHost}${IAPIRoute.GetNotarySignature}`, body, {
+                    ...headers,
+                    validateStatus: () => true,
+                })
                 .then((response) => {
                     return {
                         status: castAPIStatus(response.data.status),
@@ -604,7 +604,7 @@ export class ZenottaInstance {
             const signatures = throwIfErr(this.keyMgmt.signMessage(keyPairs, message));
             return {
                 status: 'success',
-                reason: '',
+                reason: ISuccessInternal.MessageSigned,
                 content: {
                     signMessageResponse: signatures,
                 },
@@ -756,7 +756,7 @@ export class ZenottaInstance {
                     // Payment now getting processed
                     return {
                         status: 'success',
-                        reason: 'Receipt-based payment processing',
+                        reason: ISuccessInternal.RbPaymentProcessing,
                         content: {
                             makeRbPaymentResponse: {
                                 druid,
@@ -919,7 +919,7 @@ export class ZenottaInstance {
                         // NB: Make sure we use the same compute host when initializing all receipt-based payments
                         `${this.computeHost}${IAPIRoute.CreateTransactions}`,
                         transactionsToSend,
-                        headers,
+                        { ...headers, validateStatus: () => true },
                     )
                     .then(async (response) => {
                         if (castAPIStatus(response.data.status) === 'error')
@@ -958,7 +958,7 @@ export class ZenottaInstance {
 
             return {
                 status: 'success',
-                reason: 'Succesfully fetched pending receipt-based transactions',
+                reason: ISuccessInternal.PendingRbPaymentsFetched,
                 content: {
                     fetchPendingRbResponse: responseData,
                 },
@@ -998,7 +998,7 @@ export class ZenottaInstance {
                 }
                 return {
                     status: 'success',
-                    reason: 'Addresses have successfully been reconstructed',
+                    reason: ISuccessInternal.AddressesReconstructed,
                     content: {
                         regenWalletResponse: encryptedKeypairs,
                     },
@@ -1024,7 +1024,7 @@ export class ZenottaInstance {
             if (!this.keyMgmt) throw new Error(IErrorInternal.ClientNotInitialized);
             return {
                 status: 'success',
-                reason: 'Successfully generated new address',
+                reason: ISuccessInternal.NewAddressGenerated,
                 content: {
                     newKeypairResponse: throwIfErr(this.keyMgmt.getNewKeypair(allAddresses)),
                 },
@@ -1048,7 +1048,7 @@ export class ZenottaInstance {
             if (!this.keyMgmt) throw new Error(IErrorInternal.ClientNotInitialized);
             return {
                 status: 'success',
-                reason: 'Successfully obtained seed phrase',
+                reason: ISuccessInternal.SeedPhraseObtained,
                 content: {
                     getSeedPhraseResponse: throwIfErr(this.keyMgmt.getSeedPhrase()),
                 },
@@ -1072,7 +1072,7 @@ export class ZenottaInstance {
             if (!this.keyMgmt) throw new Error(IErrorInternal.ClientNotInitialized);
             return {
                 status: 'success',
-                reason: 'Successfully obtained master key',
+                reason: ISuccessInternal.MasterKeyObtained,
                 content: {
                     getMasterKeyResponse: throwIfErr(this.keyMgmt.getMasterKey()),
                 },
@@ -1097,7 +1097,7 @@ export class ZenottaInstance {
             if (!this.keyMgmt) throw new Error(IErrorInternal.ClientNotInitialized);
             return {
                 status: 'success',
-                reason: 'Successfully decrypted keypair',
+                reason: ISuccessInternal.KeypairDecrypted,
                 content: {
                     decryptKeypairResponse: throwIfErr(
                         this.keyMgmt.decryptKeypair(encryptedKeypair),
@@ -1173,7 +1173,7 @@ export class ZenottaInstance {
                 .post<INetworkResponse>(
                     `${this.computeHost}${IAPIRoute.CreateTransactions}`,
                     [paymentBody.createTx],
-                    headers,
+                    { ...headers, validateStatus: () => true },
                 )
                 .then((response) => {
                     return {
@@ -1281,7 +1281,7 @@ export class ZenottaInstance {
                         // We send this transaction to the compute node specified by the sending party
                         `${txInfo.computeHost}${IAPIRoute.CreateTransactions}`,
                         [sendRbTxHalf.createTx],
-                        headers,
+                        { ...headers, validateStatus: () => true },
                     )
                     .then((response) => {
                         if (castAPIStatus(response.data.status) !== 'success')
@@ -1313,7 +1313,7 @@ export class ZenottaInstance {
 
             return {
                 status: 'success',
-                reason: 'Successfully responded to receipt-based payment',
+                reason: ISuccessInternal.RespondedToRbPayment,
             } as IClientResponse;
         } catch (error) {
             return {
@@ -1341,7 +1341,10 @@ export class ZenottaInstance {
                 IAPIRoute.DebugData,
             );
             return await axios
-                .get<INetworkResponse>(`${host}${IAPIRoute.DebugData}`, headers)
+                .get<INetworkResponse>(`${host}${IAPIRoute.DebugData}`, {
+                    ...headers,
+                    validateStatus: () => true,
+                })
                 .then(async (response) => {
                     return {
                         status: castAPIStatus(response.data.status),

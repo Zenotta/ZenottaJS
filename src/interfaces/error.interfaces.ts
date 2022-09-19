@@ -4,7 +4,51 @@
 
 import { Result } from 'neverthrow';
 
-// All internal error types
+export enum IErrorAll {
+    IErrorInternal,
+    IErrorNotary,
+    IErrorZNP,
+}
+
+// ZNP Error Types
+export enum IErrorZNP {
+    InternalServerError = 'Internal Server Error',
+    InvalidPassphrase = 'Invalid passphrase',
+    BlankPassphrase = 'New passphrase cannot be blank',
+    InvalidRequestBody = 'Invalid request body',
+    CannotParseAddress = 'Cannot parse address',
+    CannotAccessWallet = 'Cannot access wallet',
+    CannotAccessUserNode = 'Cannot access user node',
+    CannotAccessComputeNode = 'Cannot access compute node',
+    CannotAccessPeerUserNode = 'Cannot access peer user node',
+    CannotSaveAddressesToWallet = 'Cannot save address to wallet',
+    CannotFetchBalance = 'Cannot fetch balance',
+    NoDataFoundForKey = 'No data found for key',
+    InternalError = 'Internal Error',
+    Unauthorized = 'Unauthorized',
+    MethodNotFound = 'Method not found',
+    MethodNotAllowed = 'Method not allowed',
+    BadRequest = 'Bad request',
+}
+
+// Notary service error types
+export enum IErrorNotary {
+    NotaryIdNotSet = 'Notary ID not set',
+    NotaryNotFound = 'Notary not found',
+    NoBurnTransaction = 'No burn transaction found',
+    InvalidRequestBody = 'Invalid request body',
+    InternalServerError = 'Internal Server Error',
+    NotaryNotAuthorized = 'Notary not authorized for operation',
+    AddressConstructionFailed = 'Address construction from public keys failed',
+    TransactionOutputsHaveNoZeno = 'Transaction outputs do not contain Zeno tokens',
+    InputsDoNotBelongToPk = 'Previous inputs do not belong to the provided public keys',
+    InvalidSignatures = 'Invalid signatures provided',
+    InvalidBurnTransaction = 'Transaction outputs to burn address do not contain Zeno tokens',
+    TransactionOutputsEmpty = 'Transaction outputs contain no Zeno tokens assigned to provided burn address',
+    KeypairUndefined = 'Key-pair undefined',
+}
+
+// Internal module error
 export enum IErrorInternal {
     InsufficientFunds = 'Insufficient funds',
     NoInputs = 'No inputs for transaction',

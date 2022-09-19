@@ -1,6 +1,6 @@
 {
   "name": "@zenotta/zenotta-js",
-  "version": "1.2.7",
+  "version": "1.2.8",
   "description": "API module to access the Zenotta network",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -64,7 +64,6 @@
     "ethers": "^5.7.0",
     "js-sha3": "^0.8.0",
     "neverthrow": "^4.3.1",
-    "ts-json-schema-generator": "^1.0.0",
     "tweetnacl": "^1.0.3",
     "uuid": "^8.3.2"
   }
