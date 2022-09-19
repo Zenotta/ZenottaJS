@@ -1,3 +1,4 @@
+import { ISuccessInternal } from '@interfaces/success.interfaces';
 import axios from 'axios';
 
 import {
