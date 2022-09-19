@@ -13,13 +13,9 @@ import {
     Script,
     StackEntry,
 } from '../interfaces';
-import {
-    getHexStringBytes,
-    getStringBytes,
-    isOfTypeIAssetToken,
-    truncateByBytesUTF8,
-} from '../utils';
+import { getHexStringBytes, getStringBytes, truncateByBytesUTF8 } from '../utils';
 import { constructAddress } from './key.mgmt';
+import { initIAssetToken, isOfType } from '../utils/interface.utils';
 
 /* -------------------------------------------------------------------------- */
 /*                            Transaction Utilities                           */
@@ -140,7 +136,7 @@ export function constructTxInsAddress(txIns: ICreateTxIn[]): IResult<string> {
 //TODO: Add data asset type
 //TODO: Use DRS transaction hash as part of the signable data?
 export function constructTxInSignableAssetHash(asset: IAssetToken | IAssetReceipt): string {
-    if (isOfTypeIAssetToken(asset)) {
+    if (isOfType<IAssetToken>(asset, initIAssetToken())) {
         return sha3_256(
             getStringBytes(`Token:${asset.Token}`),
         ); /* Actual token amount, not formatted for display */

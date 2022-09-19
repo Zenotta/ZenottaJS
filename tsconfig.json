@@ -27,21 +27,7 @@
       "./src/declaration.d.ts"
     ],
     "rootDir": "./src",
-    "baseUrl": ".",
-    "paths": {
-      "@interfaces/*": [
-        "src/interfaces/*"
-      ],
-      "@utils/*": [
-        "src/utils/*"
-      ],
-      "@mgmt/*": [
-        "src/mgmt/*"
-      ],
-      "@services/*": [
-        "src/services/*"
-      ]
-    }
+    "baseUrl": "."
   },
   "include": [
     "src"

@@ -23,7 +23,7 @@ import {
     getStringBytes,
     initIAssetReceipt,
     initIAssetToken,
-    isOfTypeIAssetToken,
+    isOfType,
     lhsAssetIsGreaterThanRhsAsset,
     lhsAssetIsLessThanRhsAsset,
     subRhsAssetFromLhsAsset,
@@ -58,7 +58,7 @@ export function getInputsForTx(
     allKeypairs: Map<string, IKeypair>,
 ): IResult<IGetInputsResult> {
     // Check to see if there's enough funds
-    const isOfTypeAssetToken = isOfTypeIAssetToken(paymentAsset);
+    const isOfTypeAssetToken = isOfType<IAssetToken>(paymentAsset, initIAssetToken());
     const enoughRunningTotal = isOfTypeAssetToken
         ? paymentAsset.Token <= fetchBalanceResponse.total.tokens
         : paymentAsset.Receipt.amount <=

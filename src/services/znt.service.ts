@@ -1,4 +1,3 @@
-import { ISuccessInternal } from '@interfaces/success.interfaces';
 import axios from 'axios';
 
 import {
@@ -19,6 +18,7 @@ import {
     IRequestIntercomDelBody,
     IRequestIntercomGetBody,
     IResponseIntercom,
+    ISuccessInternal,
 } from '../interfaces';
 import {
     constructTxInsAddress,

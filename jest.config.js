@@ -1,8 +1,3 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-/* eslint-disable no-undef */
-const { pathsToModuleNameMapper } = require('ts-jest');
-const { compilerOptions } = require('./tsconfig');
-
 module.exports = {
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
@@ -13,5 +8,4 @@ module.exports = {
     "./src"
   ],
   moduleFileExtensions: ['ts', 'js', 'json', 'node'],
-  moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths, { prefix: '<rootDir>/' })
 };
