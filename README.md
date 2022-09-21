@@ -5,7 +5,7 @@
 
 <div align="center">
   <a>
-    <img src="https://github.com/Zenotta/ZenottaJS/blob/develop/assets/hero.svg" alt="Logo" style="max-width: 350px">
+    <img src="https://github.com/Zenotta/ZenottaJS/blob/develop/assets/hero.svg" alt="Logo" style="width: 350px">
   </a>
 
   <h3 align="center">Zenotta-JS</h3>
