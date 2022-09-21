@@ -10,7 +10,10 @@
 
   <h3 align="center">Zenotta-JS</h3>
 
-  <div><img src="https://img.shields.io/github/workflow/status/Zenotta/ZenottaJS/CodeQL" alt="Pipeline Status" /></div>
+  <div>
+  <img src="https://img.shields.io/github/workflow/status/Zenotta/ZenottaJS/CodeQL" alt="Pipeline Status" style="display:inline-block"/>
+  <img src="https://img.shields.io/npm/v/@zenotta/zenotta-js" alt="Pipeline Status" style="display:inline-block"/>
+  </div>
 
   <p align="center">
     A JavaScript module to help interact with the Zenotta blockchain network.
