@@ -488,13 +488,12 @@ or complex logic to create.
 
 * `makeTokenPayment`
 
-| **Argument**     | **Type**            | **Default** | **Required** | **Description**                                                                                                                                                                              |
-|------------------|---------------------|-------------|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| address          | `IKeypairEncrypted` |             | yes          | The keypair to generate the address that the Receipt assets will be sent to once generated                                                                                                   |
-| defaultDrsTxHash | `boolean`           | true        | no           | Setting this to `true` will create generic Receipts, while setting it to `false`  will generate a genesis transaction hash unique to these Receipts. Use `false` if  you want to create NFTs |
-| amount           | `number`            | 1000        | no           | The number of Receipt assets to mint                                                                                                                                                         |
-| metadata         | `string`            | null        | no           | Optional metadata that you can attach to the asset                                                                                                                                           |
-|                  |                     |             |              |                                                                                                                                                                                              |
+| **Argument**   | **Type**               | **Default** | **Required** | **Description**                                                                                                                  |
+|----------------|------------------------|-------------|--------------|----------------------------------------------------------------------------------------------------------------------------------|
+| paymentAddress | `string`               |             | yes          | Address to make the token payment to                                                                                             |
+| paymentAmount  | `number`               |             | yes          | Amount of tokens to pay                                                                                                          |
+| allKeypairs    | `IKeypairEncrypted []` |             | yes          | Keypairs to use to make the payment. Must have token balance associated  with these keypairs in order to process the transaction |
+| excessKeypair  | `IKeypairEncrypted`    |             | yes          | Excess keypair to send any remaining balance to                                                                                  |
 
   ```typescript
   import { ZenottaInstance } from '@zenotta/zenotta-js';
@@ -525,13 +524,13 @@ or complex logic to create.
 
 * `makeReceiptPayment`
 
-| **Argument**     | **Type**            | **Default** | **Required** | **Description**                                                                                                                                                                              |
-|------------------|---------------------|-------------|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| address          | `IKeypairEncrypted` |             | yes          | The keypair to generate the address that the Receipt assets will be sent to once generated                                                                                                   |
-| defaultDrsTxHash | `boolean`           | true        | no           | Setting this to `true` will create generic Receipts, while setting it to `false`  will generate a genesis transaction hash unique to these Receipts. Use `false` if  you want to create NFTs |
-| amount           | `number`            | 1000        | no           | The number of Receipt assets to mint                                                                                                                                                         |
-| metadata         | `string`            | null        | no           | Optional metadata that you can attach to the asset                                                                                                                                           |
-|                  |                     |             |              |                                                                                                                                                                                              |
+| **Argument**   | **Type**               | **Default** | **Required** | **Description**                                                                                                                  |
+|----------------|------------------------|-------------|--------------|----------------------------------------------------------------------------------------------------------------------------------|
+| paymentAddress | `string`               |             | yes          | Address to make the token payment to                                                                                             |
+| paymentAmount  | `number`               |             | yes          | Amount of tokens to pay                                                                                                          |
+| drsTxHash      | `string`               |             | yes          | The genesis transaction hash of the Receipt asset to spend. This is the unique  identifier of the Receipt asset                  |
+| allKeypairs    | `IKeypairEncrypted []` |             | yes          | Keypairs to use to make the payment. Must have token balance associated  with these keypairs in order to process the transaction |
+| excessKeypair  | `IKeypairEncrypted`    |             | yes          | Excess keypair to send any remaining balance to                                                                                  |
 
   ``` typescript
   import { ZenottaInstance } from '@zenotta/zenotta-js';
@@ -565,6 +564,14 @@ or complex logic to create.
 ### Making Receipt-based Payments
 
 * `makeRbPayment`
+
+| **Argument**   | **Type**                       | **Default** | **Required** | **Description**                              |
+|----------------|--------------------------------|-------------|--------------|----------------------------------------------|
+| paymentAddress | `string`                       |             | yes          | Address to make the token payment to         |
+| sendingAsset   | `IAssetReceipt \| IAssetToken` |             | yes          | The asset to pay                             |
+| receivingAsset | `IAssetReceipt \| IAssetToken` |             | yes          | The asset to receive                         |
+| allKeypairs    | `IKeypairEncrypted[]`          |             | yes          | A list of all existing key-pairs (encrypted) |
+| receiveAddress | `IKeypairEncrypted`            |             | yes          | A keypair to assign the "receiving" asset to |
 
   ```typescript
   import { ZenottaInstance } from '@zenotta/zenotta-js';
