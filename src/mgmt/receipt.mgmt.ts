@@ -30,6 +30,7 @@ import { createTx, getInputsForTx } from './tx.mgmt';
  * @param {(number | null)} version - Address version
  * @param {number} [amount=RECEIPT_DEFAULT] - Amount of the asset to create
  * @param {boolean} [default_drs_tx_hash=true] - Whether to use the default DRS transaction hash
+ * @param {string | null} [metadata=null] - Metadata to be included in the asset
  * @return {*}  {IResult<IReceiptCreationAPIPayload>}
  */
 export function createReceiptPayload(
@@ -38,6 +39,7 @@ export function createReceiptPayload(
     version: number | null,
     amount: number = RECEIPT_DEFAULT,
     default_drs_tx_hash = true,
+    metadata: string | null = null
 ): IResult<IReceiptCreationAPIPayload> {
     const address = constructAddress(pubKey, version);
     if (address.isErr()) return err(address.error);
@@ -45,6 +47,7 @@ export function createReceiptPayload(
         Receipt: {
             amount,
             drs_tx_hash: '', // TODO: Change this if signable data for creating receipt assets changes; currently not used to create signable data
+            metadata
         },
     };
     const signableAssetHash = constructTxInSignableAssetHash(asset);
@@ -58,6 +61,7 @@ export function createReceiptPayload(
         drs_tx_hash_spec: default_drs_tx_hash
             ? IDrsTxHashSpecification.Default
             : IDrsTxHashSpecification.Create,
+        metadata,
     });
 }
 

@@ -63,6 +63,7 @@ export const FETCH_BALANCE_RESPONSE_TEST: IFetchBalanceResponse = {
                     Receipt: {
                         amount: 3,
                         drs_tx_hash: DEFAULT_DRS_TX_HASH,
+                        metadata: "{'test': 'test'}"
                     },
                 },
             },

@@ -32,6 +32,17 @@ test('creates a valid payload to create receipts', () => {
         ADDRESS_VERSION,
     );
 
+    const metadataPayload = receiptMgmt.createReceiptPayload(
+        keypair.secretKey,
+        keypair.publicKey,
+        ADDRESS_VERSION,
+        1000,
+        true,
+        "{'test': 'test'}",
+    );
+
+    console.log('metadataPayload', metadataPayload);
+
     if (payload.isOk()) {
         expect(payload.value).toEqual({
             receipt_amount: 1000,
@@ -42,7 +53,21 @@ test('creates a valid payload to create receipts', () => {
             version: null,
             drs_tx_hash_spec:
                 IDrsTxHashSpecification.Default /* Create generic Receipt assets instead of a tracked Receipt assets */,
+            metadata: null,
         });
+    }
+
+    if (metadataPayload.isOk()) {
+        expect(metadataPayload.value).toEqual({
+            receipt_amount: 1000,
+            public_key: '69fee81c9045b35eaf04b74bfa7983618a08acb719ef8d3749a4f004a293cadf',
+            script_public_key: 'a0b08e623c6800bb27dddb5d6f6956939be674cfc63399dcc7b9f2e6733c02e5',
+            signature: '08e2251bb12d8b4acf168404a11166868bc9222364ee66d545ab4c9e317d85ca420686b637319869ecba7bbf3aa268577ab434990847a3b32537e84ac5b1bd03',
+            version: null,
+            drs_tx_hash_spec: 
+                IDrsTxHashSpecification.Default /* Create generic Receipt assets instead of a tracked Receipt assets */,
+            metadata: "{'test': 'test'}",
+        })
     }
 });
 
@@ -65,6 +90,7 @@ test('create transaction for the SEND portion of a receipt-based payment', () =>
                 Receipt: {
                     amount: 1,
                     drs_tx_hash: DEFAULT_DRS_TX_HASH,
+                    metadata: "{'test': 'test'}",
                 },
             },
             from: 'their_from_value',
@@ -185,6 +211,7 @@ test('create transaction for the SEND portion of a receipt-based payment', () =>
                                 Receipt: {
                                     amount: 1,
                                     drs_tx_hash: DEFAULT_DRS_TX_HASH,
+                                    metadata: "{'test': 'test'}",
                                 },
                             },
                             from: 'their_from_value',
@@ -224,6 +251,7 @@ test('create transaction for the RECEIVE portion of a receipt-based payment', ()
                 Receipt: {
                     amount: 1,
                     drs_tx_hash: DEFAULT_DRS_TX_HASH,
+                    metadata: "{'test': 'test'}",
                 },
             },
             from: 'our_from_value',
@@ -252,7 +280,7 @@ test('create transaction for the RECEIVE portion of a receipt-based payment', ()
             expect(txOuts).toStrictEqual([
                 {
                     value: {
-                        Receipt: { amount: 1, drs_tx_hash: DEFAULT_DRS_TX_HASH },
+                        Receipt: { amount: 1, drs_tx_hash: DEFAULT_DRS_TX_HASH, metadata: "{'test': 'test'}" },
                     } /* Amount payed */,
                     locktime: 0,
                     drs_block_hash: null,
@@ -260,7 +288,7 @@ test('create transaction for the RECEIVE portion of a receipt-based payment', ()
                 },
                 {
                     value: {
-                        Receipt: { amount: 2, drs_tx_hash: DEFAULT_DRS_TX_HASH },
+                        Receipt: { amount: 2, drs_tx_hash: DEFAULT_DRS_TX_HASH, metadata: "{'test': 'test'}" },
                     } /* Change/excess */,
                     locktime: 0,
                     drs_block_hash: null,
@@ -354,6 +382,7 @@ test('creates a valid signable asset hash value', () => {
                     amount: 1,
                     drs_tx_hash:
                         DEFAULT_DRS_TX_HASH /* Value is currently not used to generate signable hash */,
+                    metadata: "{'test': 'test'}",
                 },
             }),
         ),

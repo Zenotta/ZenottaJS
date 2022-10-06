@@ -69,7 +69,7 @@ export function getInputsForTx(
         let totalAmountGathered: IAssetToken | IAssetReceipt = isOfTypeAssetToken
             ? initIAssetToken()
             : initIAssetReceipt({
-                  Receipt: { amount: 0, drs_tx_hash: paymentAsset.Receipt.drs_tx_hash },
+                  Receipt: { amount: 0, drs_tx_hash: paymentAsset.Receipt.drs_tx_hash, metadata: paymentAsset.Receipt.metadata },
               });
         // A list of all addresses used to gather inputs
         const usedAddresses: string[] = [];

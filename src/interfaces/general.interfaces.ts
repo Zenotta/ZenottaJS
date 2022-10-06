@@ -107,6 +107,7 @@ export type IAssetReceipt = {
     Receipt: {
         amount: number;
         drs_tx_hash: string;
+        metadata: string | null;
     };
 };
 

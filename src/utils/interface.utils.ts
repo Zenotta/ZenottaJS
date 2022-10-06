@@ -46,6 +46,7 @@ export function initIAssetReceipt(options?: Partial<IAssetReceipt>): IAssetRecei
         Receipt: {
             amount: 0,
             drs_tx_hash: DEFAULT_DRS_TX_HASH,
+            metadata: null,
         },
     };
 
@@ -124,6 +125,7 @@ export const addLhsAssetToRhsAsset = (
             Receipt: {
                 amount: lhs.Receipt.amount + rhs.Receipt.amount,
                 drs_tx_hash: lhs.Receipt.drs_tx_hash,
+                metadata: lhs.Receipt.metadata,
             },
         };
         return ok(returnValue);
@@ -163,6 +165,7 @@ export const subRhsAssetFromLhsAsset = (
             Receipt: {
                 amount: lhs.Receipt.amount - rhs.Receipt.amount,
                 drs_tx_hash: lhs.Receipt.drs_tx_hash,
+                metadata: lhs.Receipt.metadata,
             },
         };
         return ok(returnValue);

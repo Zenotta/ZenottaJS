@@ -48,13 +48,15 @@ test('validate asset type guards', () => {
     const assetToken_2 = initIAssetToken({ Token: 2 });
     const assetReceipt_1 = initIAssetReceipt();
     const assetReceipt_2 = initIAssetReceipt({
-        Receipt: { amount: 1, drs_tx_hash: 'unique_drs_tx_hash' },
+        Receipt: { amount: 1, drs_tx_hash: 'unique_drs_tx_hash', 
+        metadata: "{'test': 'test'}", },
     });
     const assetReceipt_3 = initIAssetReceipt({
-        Receipt: { amount: 2, drs_tx_hash: 'unique_drs_tx_hash' },
+        Receipt: { amount: 2, drs_tx_hash: 'unique_drs_tx_hash', metadata: "{'test': 'test'}", },
     });
     const assetReceipt_4 = initIAssetReceipt({
-        Receipt: { amount: 3, drs_tx_hash: DEFAULT_DRS_TX_HASH },
+        Receipt: { amount: 3, drs_tx_hash: DEFAULT_DRS_TX_HASH, 
+            metadata: "{'test': 'test'}", },
     });
 
     /* ------------------------- Individual type guards ------------------------- */
@@ -138,22 +140,23 @@ test('validate correct value amount and mathematical operation between assets', 
 
     /* ----------------------- `Receipt` asset operations ----------------------- */
     const assetReceipt_1 = initIAssetReceipt({
-        Receipt: { amount: 1, drs_tx_hash: DEFAULT_DRS_TX_HASH },
+        Receipt: { amount: 1, drs_tx_hash: DEFAULT_DRS_TX_HASH, 
+            metadata: "{'test': 'test'}" },
     });
     const assetReceipt_2 = initIAssetReceipt({
-        Receipt: { amount: 10, drs_tx_hash: DEFAULT_DRS_TX_HASH },
+        Receipt: { amount: 10, drs_tx_hash: DEFAULT_DRS_TX_HASH, metadata: "{'test': 'test'}" },
     });
     const assetReceipt_3 = initIAssetReceipt({
-        Receipt: { amount: 10, drs_tx_hash: DEFAULT_DRS_TX_HASH },
+        Receipt: { amount: 10, drs_tx_hash: DEFAULT_DRS_TX_HASH, metadata: "{'test': 'test'}" },
     });
     const assetReceipt_4 = initIAssetReceipt({
-        Receipt: { amount: 1, drs_tx_hash: 'unique_drs_tx_hash' },
+        Receipt: { amount: 1, drs_tx_hash: 'unique_drs_tx_hash', metadata: "{'test': 'test'}" },
     });
     const assetReceipt_5 = initIAssetReceipt({
-        Receipt: { amount: 10, drs_tx_hash: 'unique_drs_tx_hash' },
+        Receipt: { amount: 10, drs_tx_hash: 'unique_drs_tx_hash', metadata: "{'test': 'test'}" },
     });
     const assetReceipt_6 = initIAssetReceipt({
-        Receipt: { amount: 10, drs_tx_hash: 'unique_drs_tx_hash' },
+        Receipt: { amount: 10, drs_tx_hash: 'unique_drs_tx_hash', metadata: "{'test': 'test'}" },
     });
 
     /*
@@ -161,11 +164,11 @@ test('validate correct value amount and mathematical operation between assets', 
      */
     // Subtract assetReceipt_1 from assetReceipt_2
     expect(throwIfErr(subRhsAssetFromLhsAsset(assetReceipt_2, assetReceipt_1))).toStrictEqual({
-        Receipt: { amount: 9, drs_tx_hash: DEFAULT_DRS_TX_HASH },
+        Receipt: { amount: 9, drs_tx_hash: DEFAULT_DRS_TX_HASH, metadata: "{'test': 'test'}" },
     });
     // Add assetReceipt_1 to assetReceipt_2
     expect(throwIfErr(addLhsAssetToRhsAsset(assetReceipt_2, assetReceipt_1))).toStrictEqual({
-        Receipt: { amount: 11, drs_tx_hash: DEFAULT_DRS_TX_HASH },
+        Receipt: { amount: 11, drs_tx_hash: DEFAULT_DRS_TX_HASH, metadata: "{'test': 'test'}" },
     });
     // Test assetReceipt_1 < assetReceipt_2
     expect(throwIfErr(lhsAssetIsLessThanRhsAsset(assetReceipt_1, assetReceipt_2))).toBe(true);
