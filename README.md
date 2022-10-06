@@ -445,6 +445,16 @@ or complex logic to create.
   
   // Create `Receipt` assets that have a unique DRS identifier
   const createReceiptResponse = await client.createReceipts(keyPair, false).content.createReceiptResponse;
+
+  <!-- --------------------------------- ALL ARGUMENTS VERSION ---------------------------------- -->
+
+  const createReceiptResponse = await client.createReceipts(
+    keyPair,
+    false,
+    10000,
+    "{ 'imageURL': '...', 'description': '...' }"
+  ).content
+  .createReceiptResponse;
   
   ```
 
@@ -478,6 +488,14 @@ or complex logic to create.
 
 * `makeTokenPayment`
 
+| **Argument**     | **Type**            | **Default** | **Required** | **Description**                                                                                                                                                                              |
+|------------------|---------------------|-------------|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| address          | `IKeypairEncrypted` |             | yes          | The keypair to generate the address that the Receipt assets will be sent to once generated                                                                                                   |
+| defaultDrsTxHash | `boolean`           | true        | no           | Setting this to `true` will create generic Receipts, while setting it to `false`  will generate a genesis transaction hash unique to these Receipts. Use `false` if  you want to create NFTs |
+| amount           | `number`            | 1000        | no           | The number of Receipt assets to mint                                                                                                                                                         |
+| metadata         | `string`            | null        | no           | Optional metadata that you can attach to the asset                                                                                                                                           |
+|                  |                     |             |              |                                                                                                                                                                                              |
+
   ```typescript
   import { ZenottaInstance } from '@zenotta/zenotta-js';
 
@@ -507,6 +525,14 @@ or complex logic to create.
 
 * `makeReceiptPayment`
 
+| **Argument**     | **Type**            | **Default** | **Required** | **Description**                                                                                                                                                                              |
+|------------------|---------------------|-------------|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| address          | `IKeypairEncrypted` |             | yes          | The keypair to generate the address that the Receipt assets will be sent to once generated                                                                                                   |
+| defaultDrsTxHash | `boolean`           | true        | no           | Setting this to `true` will create generic Receipts, while setting it to `false`  will generate a genesis transaction hash unique to these Receipts. Use `false` if  you want to create NFTs |
+| amount           | `number`            | 1000        | no           | The number of Receipt assets to mint                                                                                                                                                         |
+| metadata         | `string`            | null        | no           | Optional metadata that you can attach to the asset                                                                                                                                           |
+|                  |                     |             |              |                                                                                                                                                                                              |
+
   ``` typescript
   import { ZenottaInstance } from '@zenotta/zenotta-js';
   
@@ -527,7 +553,7 @@ or complex logic to create.
   await makeReceiptPayment(
           "d0e72...85b46", // Payment address
           10,              // Payment amount
-          drsTxHash        // DRS identifier
+          drsTxHash,       // DRS identifier
           allKeypairs,     // All key-pairs
           changeKeyPair,   // Excess/change address
       );
