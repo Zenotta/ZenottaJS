@@ -415,7 +415,17 @@ Since a seed phrase can be used to reconstruct lost/missing key-pairs, it is cus
 
 ### Creating Receipt Assets
 
+Receipts are the NFTs of the Zenotta blockchain, but unlike NFTs don't require you to write any Smart Contracts 
+or complex logic to create.
+
 * `createReceipts`
+
+| **Argument**     | **Type**            | **Default** | **Required** | **Description**                                                                                                                                                                              |
+|------------------|---------------------|-------------|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| address          | `IKeypairEncrypted` |             | yes          | The keypair to generate the address that the Receipt assets will be sent to once generated                                                                                                   |
+| defaultDrsTxHash | `boolean`           | true        | no           | Setting this to `true` will create generic Receipts, while setting it to `false`  will generate a genesis transaction hash unique to these Receipts. Use `false` if  you want to create NFTs |
+| amount           | `number`            | 1000        | no           | The number of Receipt assets to mint                                                                                                                                                         |
+| metadata         | `string`            | null        | no           | Optional metadata that you can attach to the asset                                                                                                                                           |
 
   ``` typescript
   import { ZenottaInstance } from '@zenotta/zenotta-js';
@@ -528,7 +538,7 @@ Since a seed phrase can be used to reconstruct lost/missing key-pairs, it is cus
   
 ### Making Receipt-based Payments
 
-* `makeReceiptPayment`
+* `makeRbPayment`
 
   ```typescript
   import { ZenottaInstance } from '@zenotta/zenotta-js';
