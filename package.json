@@ -1,6 +1,6 @@
 {
   "name": "@zenotta/zenotta-js",
-  "version": "1.2.11",
+  "version": "1.2.12",
   "description": "API module to access the Zenotta network",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
