@@ -76,7 +76,9 @@ export function getBytesHexString(bytes: Uint8Array): string {
  * @returns
  */
 export function formatBalance(balance: number, fraction?: number): string {
-    if (balance < 0 || balance > BAL_LIMIT) {
+    fraction = fraction || 1;
+    
+    if (balance < 0 || balance > (BAL_LIMIT * fraction)) {
         return 'N/A';
     } else if (balance === 0) {
         return balance.toFixed(6);
